@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Quiz Slide Automation Tool (16:9)</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Mukta:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800;900&family=Noto+Serif:wght@400;700;900&family=Noto+Serif+Devanagari:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700;900&family=Tiro+Devanagari+Hindi&display=swap">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -32,6 +32,33 @@
     @keyframes slideFromTop {
       0% {
         transform: translateY(-60px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* Mobile-scaled Intro Animations (Same feel as PC) */
+    @keyframes popDownMobile {
+      0% {
+        transform: translateY(-36px) scale(0.84);
+        opacity: 0;
+      }
+      70% {
+        transform: translateY(4px) scale(1.02);
+        opacity: 1;
+      }
+      100% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideFromTopMobile {
+      0% {
+        transform: translateY(-22px);
         opacity: 0;
       }
       100% {
@@ -98,6 +125,7 @@
       display: none;
       z-index: 60;
       width: 359px;
+      max-width: 45%;
       height: auto;
       object-fit: contain;
       cursor: grab;
@@ -115,6 +143,8 @@
       left: 12px;
       width: 207px;
       height: 207px;
+      max-width: 28%;
+      max-height: 45%;
       object-fit: contain;
       z-index: 35;
       cursor: move;
@@ -131,8 +161,8 @@
 
     /* Prominent horizontal scrollbar for waveform timeline */
     .editor-scroll::-webkit-scrollbar {
-      height: 12px;
-      width: 8px;
+      height: 10px;
+      width: 6px;
     }
     .editor-scroll::-webkit-scrollbar-track {
       background: #0f172a;
@@ -146,6 +176,202 @@
     .editor-scroll::-webkit-scrollbar-thumb:hover {
       background: #38bdf8;
     }
+
+    /* Smooth touch support on waveform */
+    #waveformBox, #timeRulerCanvas {
+      touch-action: pan-x;
+    }
+
+    /* Mobile Screen Fix (Question + A/B/C/D Options + Overlays + Controls + PC-like Animations intact) */
+    @media (max-width: 768px) {
+      html, body {
+        overflow-x: hidden;
+        max-width: 100%;
+        padding: 6px !important;
+      }
+
+      header {
+        padding: 10px !important;
+        gap: 8px !important;
+      }
+
+      header h1 {
+        font-size: 14px !important;
+      }
+
+      header .header-actions {
+        width: 100%;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px !important;
+      }
+
+      header .header-actions > button,
+      header .header-actions > label {
+        width: 100%;
+        text-align: center;
+        justify-content: center;
+        padding: 8px 6px !important;
+        font-size: 11px !important;
+      }
+
+      header .header-actions > button:last-child {
+        grid-column: span 2;
+      }
+
+      #canvasSection {
+        padding: 8px !important;
+      }
+
+      #canvasWrapper {
+        width: 100%;
+        padding: 0;
+      }
+
+      #captureArea {
+        width: 100%;
+        max-width: 100%;
+        aspect-ratio: 16 / 9;
+        padding: 6px !important;
+        gap: 4px !important;
+        border-radius: 10px;
+      }
+
+      /* Question box ka structure same rakhein + PC jaisa animation */
+      #q-box {
+        padding: 6px !important;
+        border-radius: 8px !important;
+      }
+
+      #q-box.animate-pop-down {
+        animation: popDownMobile 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards !important;
+      }
+
+      #qText {
+        font-size: clamp(11px, 3.2vw, 20px) !important;
+        line-height: 1.15 !important;
+      }
+
+      /* Options block (A, B, C, D) mobile screen par clean fit rahe + PC jaisa staggered entrance */
+      #optionsContainer {
+        width: 68% !important;
+        gap: 3px !important;
+        padding: 0 !important;
+      }
+
+      .opt-box {
+        padding-left: 6px !important;
+        padding-right: 6px !important;
+        border-radius: 6px !important;
+      }
+
+      .opt-box.animate-option-entrance {
+        animation: slideFromTopMobile 0.5s ease-out both !important;
+      }
+
+      .opt-wrapper {
+        font-size: clamp(9px, 2.3vw, 15px) !important;
+        gap: 5px !important;
+        line-height: 1.1 !important;
+      }
+
+      .opt-wrapper > span:first-child {
+        width: 16px !important;
+        height: 16px !important;
+        font-size: 9px !important;
+      }
+
+      /* Mobile Control Bar Grid */
+      #slideControlBar {
+        width: 100%;
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px !important;
+        padding: 8px !important;
+        text-align: center;
+      }
+
+      #slideControlBar #pageIndicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 4px !important;
+        font-size: 11px !important;
+      }
+
+      #slideControlBar button {
+        padding: 8px 4px !important;
+        font-size: 11px !important;
+        width: 100%;
+      }
+
+      #slideControlBar #showAnsBtn {
+        grid-column: span 1;
+      }
+
+      #slideControlBar #startTimerBtn {
+        grid-column: span 2;
+      }
+
+      /* Waveform Editor Mobile Adjustments */
+      #waveformToolbar {
+        flex-wrap: wrap !important;
+        white-space: normal !important;
+        gap: 6px !important;
+        padding: 8px !important;
+      }
+
+      #waveformToolbar .wave-btns {
+        flex-wrap: wrap !important;
+        gap: 5px !important;
+        width: 100%;
+      }
+
+      #waveformToolbar .wave-btns button,
+      #waveformToolbar .wave-btns label,
+      #waveformToolbar .wave-btns select {
+        padding: 5px 7px !important;
+        font-size: 10.5px !important;
+      }
+
+      #waveformBox {
+        height: 84px !important;
+      }
+
+      /* Sidebar Mobile Flow (No nested scroll trap) */
+      #controlsSidebar {
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding-right: 0 !important;
+      }
+
+      #controlsSidebar input[type="range"] {
+        height: 24px;
+      }
+    }
+
+    /* Bahut chhoti mobile screens (<= 420px) */
+    @media (max-width: 420px) {
+      #captureArea {
+        padding: 5px !important;
+        gap: 3px !important;
+      }
+
+      #qText {
+        font-size: clamp(10px, 3vw, 16px) !important;
+      }
+
+      .opt-wrapper {
+        font-size: clamp(8.5px, 2.2vw, 13px) !important;
+        gap: 4px !important;
+      }
+
+      .opt-wrapper > span:first-child {
+        width: 14px !important;
+        height: 14px !important;
+        font-size: 8px !important;
+      }
+    }
   </style>
 </head>
 <body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col items-center p-3 font-sans">
@@ -156,7 +382,7 @@
       <h1 class="text-base font-bold text-yellow-400">Quiz Automation Tool (16:9 Design)</h1>
       <p class="text-xs text-gray-400">Auto-Fitting Question Text + 30s/Screen Scrollable Audio Split Timer</p>
     </div>
-    <div class="flex flex-wrap gap-2">
+    <div class="header-actions flex flex-wrap gap-2">
       <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg font-semibold text-xs transition shadow">
         📂 Manage Questions (Bulk)
       </button>
@@ -181,7 +407,7 @@
   <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-4 items-start mb-4">
     
     <!-- Left Canvas Screen -->
-    <section class="lg:col-span-8 flex flex-col items-center justify-center bg-gray-900 p-3 rounded-xl border border-gray-800 shadow-2xl">
+    <section id="canvasSection" class="lg:col-span-8 flex flex-col items-center justify-center bg-gray-900 p-3 rounded-xl border border-gray-800 shadow-2xl w-full">
       
       <div id="canvasWrapper" class="w-full flex justify-center items-center py-1">
         
@@ -239,7 +465,7 @@
       </div>
 
       <!-- Control Bar -->
-      <div class="flex flex-wrap gap-3 mt-3 items-center bg-gray-950 px-4 py-2 rounded-lg border border-gray-800">
+      <div id="slideControlBar" class="flex flex-wrap gap-3 mt-3 items-center bg-gray-950 px-4 py-2 rounded-lg border border-gray-800">
         <button onclick="prevQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-4 py-1.5 rounded text-xs font-bold transition">◀ Previous</button>
         <span id="pageIndicator" class="text-gray-300 font-medium px-3 text-xs">Slide 1 / 1</span>
         <button onclick="nextQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-4 py-1.5 rounded text-xs font-bold transition">Next ▶</button>
@@ -249,14 +475,14 @@
 
       <!-- Audio Editor Style Waveform Timeline (Min 30s per screen + Horizontal Scroll + Splits) -->
       <div class="w-full max-w-[1280px] mt-3 bg-[#1b1f27] rounded-xl border border-gray-700 shadow-xl overflow-hidden">
-        <!-- Top Transport & Screen Window Toolbar (Single-line compact controls) -->
-        <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#232833] border-b border-gray-700 overflow-x-auto whitespace-nowrap">
+        <!-- Top Transport & Screen Window Toolbar -->
+        <div id="waveformToolbar" class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#232833] border-b border-gray-700 overflow-x-auto whitespace-nowrap">
           <div class="flex items-center gap-1.5 shrink-0">
             <span class="text-[11px] font-bold text-cyan-400">🎛️ Waveform Track</span>
-            <span id="audioFileName" class="text-[10px] text-gray-300 truncate max-w-[110px]">No audio loaded</span>
+            <span id="audioFileName" class="text-[10px] text-gray-300 truncate max-w-[140px]">No audio loaded</span>
           </div>
 
-          <div class="flex items-center gap-1 shrink-0">
+          <div class="wave-btns flex items-center gap-1 shrink-0">
             <button id="toggleAudioPlayBtn" onclick="toggleAudioPlayback()" class="bg-amber-600 hover:bg-amber-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
               ▶ Play
             </button>
@@ -328,7 +554,7 @@
             <span>Splits (Timers): <strong id="splitCountDisplay" class="text-emerald-400">0</strong></span>
           </div>
 
-          <div id="splitPointsList" class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto editor-scroll">
+          <div id="splitPointsList" class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto editor-scroll">
             <span class="text-[11px] text-gray-400">Ek screen mein kam se kam 30s audio dikhega. "Auto Split" dabayein ya T1/T2 marker ko drag karke aage-pichhe set karein.</span>
           </div>
         </div>
@@ -337,16 +563,16 @@
     </section>
 
     <!-- Controls Sidebar -->
-    <section class="lg:col-span-4 flex flex-col gap-3 max-h-[780px] overflow-y-auto pr-1">
+    <section id="controlsSidebar" class="lg:col-span-4 flex flex-col gap-3 max-h-[780px] overflow-y-auto pr-1 w-full">
       
       <!-- Font Family Controls -->
       <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
         <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🔤 Font Family Controls</h2>
         
-        <div class="grid grid-cols-1 gap-2">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Question Text Font:</label>
-            <select id="qFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+            <select id="qFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-xs">
               <option value="'Tiro Devanagari Hindi', serif" selected>Tiro Devanagari Hindi (Default)</option>
               <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
               <option value="'Noto Serif', serif">Noto Serif Bold</option>
@@ -361,7 +587,7 @@
           </div>
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Option Text Font:</label>
-            <select id="optFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+            <select id="optFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-2 text-xs">
               <option value="'Noto Serif Devanagari', serif" selected>Noto Serif Devanagari (Default)</option>
               <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari Hindi</option>
               <option value="'Noto Serif', serif">Noto Serif Bold</option>
@@ -381,7 +607,7 @@
       <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
         <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">📐 Size & Layout Controls</h2>
         
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] text-gray-300 block">Question Max Size (<span id="qFontSizeVal">51</span>px)</label>
             <input type="range" id="qFontSize" min="14" max="70" value="51" oninput="applyStyles()" class="w-full accent-yellow-500">
@@ -392,7 +618,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] text-gray-300 block">Question Box Height (<span id="qBoxHeightVal">41</span>%)</label>
             <input type="range" id="qBoxHeight" min="15" max="50" value="41" oninput="applyStyles()" class="w-full accent-yellow-500">
@@ -403,7 +629,7 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="text-[10px] text-gray-300 block">Options Block Width (<span id="optContainerWidthVal">65</span>%)</label>
             <input type="range" id="optContainerWidth" min="40" max="100" value="65" oninput="applyStyles()" class="w-full accent-yellow-500">
@@ -422,24 +648,24 @@
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Question Bg</label>
-            <input type="color" id="qBgColor" value="#FFFF00" oninput="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+            <input type="color" id="qBgColor" value="#FFFF00" oninput="applyStyles()" class="w-full h-8 bg-gray-900 border border-gray-700 rounded cursor-pointer">
           </div>
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Question Text Color</label>
-            <input type="color" id="qTextColor" value="#1E00FF" oninput="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+            <input type="color" id="qTextColor" value="#1E00FF" oninput="applyStyles()" class="w-full h-8 bg-gray-900 border border-gray-700 rounded cursor-pointer">
           </div>
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Options Bg</label>
-            <input type="color" id="optBgColor" value="#0000FF" oninput="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+            <input type="color" id="optBgColor" value="#0000FF" oninput="applyStyles()" class="w-full h-8 bg-gray-900 border border-gray-700 rounded cursor-pointer">
           </div>
           <div>
             <label class="text-[10px] text-gray-300 block mb-1">Options Text</label>
-            <input type="color" id="optTextColor" value="#FFFFFF" oninput="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+            <input type="color" id="optTextColor" value="#FFFFFF" oninput="applyStyles()" class="w-full h-8 bg-gray-900 border border-gray-700 rounded cursor-pointer">
           </div>
         </div>
         <div>
           <label class="text-[10px] text-gray-300 block mb-1">Canvas Background Fallback</label>
-          <input type="color" id="canvasBgColor" value="#00AEEF" oninput="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+          <input type="color" id="canvasBgColor" value="#00AEEF" oninput="applyStyles()" class="w-full h-8 bg-gray-900 border border-gray-700 rounded cursor-pointer">
         </div>
       </div>
 
@@ -454,7 +680,7 @@
           <label class="text-[10px] text-gray-400 block mb-1">Timer Video Size: <span id="timerVideoSizeVal">359</span>px</label>
           <input id="timerVideoSize" type="range" min="80" max="600" value="359" oninput="applyTimerVideoSize()" class="w-full accent-yellow-500">
         </div>
-        <button onclick="resetTimerVideoPosition()" class="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-xs font-semibold w-full">Reset Timer Position</button>
+        <button onclick="resetTimerVideoPosition()" class="bg-gray-700 hover:bg-gray-600 px-3 py-2 rounded text-xs font-semibold w-full">Reset Timer Position</button>
       </div>
 
       <!-- Logo Settings -->
@@ -472,13 +698,13 @@
         <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">✏️ Edit Current Slide</h2>
         <div>
           <label class="text-[10px] text-gray-400 block">Question:</label>
-          <textarea id="editQuestionInput" rows="2" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white focus:outline-none"></textarea>
+          <textarea id="editQuestionInput" rows="2" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-2 text-xs text-white focus:outline-none"></textarea>
         </div>
-        <div class="grid grid-cols-2 gap-2">
-          <div><label class="text-[10px] text-gray-400 block">Opt A:</label><input type="text" id="editOptA" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1 text-xs text-white"></div>
-          <div><label class="text-[10px] text-gray-400 block">Opt B:</label><input type="text" id="editOptB" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1 text-xs text-white"></div>
-          <div><label class="text-[10px] text-gray-400 block">Opt C:</label><input type="text" id="editOptC" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1 text-xs text-white"></div>
-          <div><label class="text-[10px] text-gray-400 block">Opt D:</label><input type="text" id="editOptD" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1 text-xs text-white"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div><label class="text-[10px] text-gray-400 block">Opt A:</label><input type="text" id="editOptA" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white"></div>
+          <div><label class="text-[10px] text-gray-400 block">Opt B:</label><input type="text" id="editOptB" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white"></div>
+          <div><label class="text-[10px] text-gray-400 block">Opt C:</label><input type="text" id="editOptC" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white"></div>
+          <div><label class="text-[10px] text-gray-400 block">Opt D:</label><input type="text" id="editOptD" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white"></div>
         </div>
       </div>
 
@@ -487,21 +713,21 @@
   </main>
 
   <!-- Bulk Question Upload Modal -->
-  <div id="questionModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
-    <div class="bg-gray-800 w-full max-w-2xl p-5 rounded-xl border border-gray-700 flex flex-col gap-3 shadow-2xl">
+  <div id="questionModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-3 z-50">
+    <div class="bg-gray-800 w-full max-w-2xl p-4 sm:p-5 rounded-xl border border-gray-700 flex flex-col gap-3 shadow-2xl max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center border-b border-gray-700 pb-2">
-        <h2 class="text-base font-bold text-yellow-400">Manage & Bulk Upload Questions (100+)</h2>
-        <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+        <h2 class="text-sm sm:text-base font-bold text-yellow-400">Manage & Bulk Upload Questions (100+)</h2>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg px-2">✕</button>
       </div>
       <p class="text-xs text-gray-300">
         Enter questions line-by-line in Pipe format:<br>
-        <code class="text-yellow-400">Question Text | Option A | Option B | Option C | Option D | Correct Answer (A/B/C/D)</code>
+        <code class="text-yellow-400 break-all">Question Text | Option A | Option B | Option C | Option D | Correct Answer (A/B/C/D)</code>
       </p>
       <textarea id="bulkInput" rows="8" class="w-full bg-gray-900 border border-gray-700 p-2.5 rounded text-white font-mono text-xs focus:border-yellow-500 focus:outline-none" placeholder="What is the capital of India? | Delhi | Mumbai | Kolkata | Chennai | A
 Bharat ki khoj kisne ki thi aur ye kis varsh me hui thi bataye? | Vasco da Gama | Columbus | Alexander | Magellan | A"></textarea>
       <div class="flex justify-end gap-2">
-        <button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-3.5 py-1.5 rounded text-xs font-semibold">Cancel</button>
-        <button onclick="saveBulkQuestions()" class="bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded text-xs font-semibold">Load Questions</button>
+        <button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-3.5 py-2 rounded text-xs font-semibold">Cancel</button>
+        <button onclick="saveBulkQuestions()" class="bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded text-xs font-semibold">Load Questions</button>
       </div>
     </div>
   </div>
@@ -881,11 +1107,13 @@ Bharat ki khoj kisne ki thi aur ye kis varsh me hui thi bataye? | Vasco da Gama 
         marker.title = `Drag to move T${idx + 1} (${formatPreciseTime(sp.time)})`;
         marker.className = `absolute top-0 bottom-0 w-[2px] cursor-ew-resize pointer-events-auto ${sp.timerEnabled ? 'bg-emerald-400' : 'bg-gray-500'}`;
         marker.style.left = `${mPos}px`;
+        marker.style.touchAction = 'none';
 
         const tag = document.createElement('button');
         tag.type = 'button';
         tag.textContent = `T${idx + 1}`;
         tag.title = `Drag T${idx + 1} left/right (${formatPreciseTime(sp.time)})`;
+        tag.style.touchAction = 'none';
         tag.className = `text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-b cursor-ew-resize select-none shadow ${
           sp.timerEnabled ? 'bg-emerald-500 text-gray-950' : 'bg-gray-600 text-gray-200'
         }`;
