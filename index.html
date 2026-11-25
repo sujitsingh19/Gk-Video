@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meri Website - Home</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        p {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .nav-btn {
+            display: block;
+            text-decoration: none;
+            background-color: #2563eb;
+            color: white;
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+        }
+        .nav-btn:hover {
+            background-color: #1d4ed8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(37, 99, 235, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Mera Dashboard</h1>
+        <p>Kisi bhi page par jaane ke liye niche diye gaye button par click karein:</p>
+        
+        <div class="button-grid">
+            <!-- Apni files ke naam href="" ke andar badal sakte hain -->
+            <a href="page1.html" class="nav-btn">Button 1 </a>
+            <a href="page2.html" class="nav-btn">Button 2 </a>
+            <a href="page3.html" class="nav-btn">Button 3 </a>
+            <a href="page4.html" class="nav-btn">Button 4 </a>
+            <a href="page5.html" class="nav-btn">Button 5 </a>
+            <a href="page6.html" class="nav-btn">Button 6 </a>
+        </div>
+    </div>
+
+</body>
+</html>

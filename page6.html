@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quiz Slide Automation Tool (New Layout)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Mukta:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800;900&family=Noto+Serif:wght@400;700;900&family=Noto+Serif+Devanagari:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700;900&family=Tiro+Devanagari+Hindi&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    .aspect-16-9 {
+      aspect-ratio: 16 / 9;
+    }
+    
+    /* Box Entrance Animation */
+    @keyframes popDown {
+      0% { transform: translateY(-50px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+
+    .animate-pop-down {
+      animation: popDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Text Reveal Animation */
+    @keyframes ansReveal {
+      0% { transform: scale(0.3); opacity: 0; }
+      70% { transform: scale(1.1); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .animate-ans-reveal {
+      animation: ansReveal 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    /* Draggable Elements Styling */
+    .draggable {
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    .draggable:active {
+      cursor: grabbing;
+    }
+
+    #timerVideoOverlay {
+      position: absolute;
+      display: none;
+      z-index: 60;
+      width: 359px;
+      height: auto;
+      object-fit: contain;
+      right: 5%;
+      bottom: 8%;
+    }
+
+    #logoOverlay {
+      position: absolute;
+      display: none;
+      top: 12px;
+      left: 12px;
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+      z-index: 35;
+    }
+
+    /* Prominent horizontal scrollbar for waveform timeline */
+    .editor-scroll::-webkit-scrollbar {
+      height: 12px;
+      width: 8px;
+    }
+    .editor-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+      border-top: 1px solid #334155;
+    }
+    .editor-scroll::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 6px;
+      border: 2px solid #0f172a;
+    }
+    .editor-scroll::-webkit-scrollbar-thumb:hover {
+      background: #38bdf8;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col items-center p-3 font-sans">
+
+  <!-- Header -->
+  <header class="w-full max-w-7xl flex flex-wrap gap-3 justify-between items-center bg-gray-900 p-3 rounded-xl shadow-lg border border-gray-800 mb-3">
+    <div>
+      <h1 class="text-base font-bold text-yellow-400">Quiz Automation Tool</h1>
+      <p class="text-xs text-gray-400">Custom Answer Reveal Layout with Animations, Drag & Audio Split Timer</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg font-semibold text-xs transition shadow">
+        📂 Manage Questions (Bulk)
+      </button>
+      <label class="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer transition shadow">
+        🖼️ Upload Main Background
+        <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="loadBackground(event)">
+      </label>
+      <label class="bg-pink-600 hover:bg-pink-700 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer transition shadow">
+        🏷️ Upload Logo
+        <input type="file" id="logoUpload" accept="image/*" class="hidden" onchange="loadLogo(event)">
+      </label>
+      <button onclick="downloadPNG()" class="bg-green-600 hover:bg-green-700 px-4 py-1.5 rounded-lg font-semibold text-xs transition shadow flex items-center gap-1">
+        ⬇️ Download HD PNG
+      </button>
+      <button onclick="downloadAllPNGs()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-1.5 rounded-lg font-semibold text-xs transition shadow flex items-center gap-1">
+        📦 Download All Images (ZIP)
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-4 items-start mb-4">
+    
+    <!-- Left Canvas Screen -->
+    <section class="lg:col-span-8 flex flex-col items-center justify-center bg-gray-900 p-3 rounded-xl border border-gray-800 shadow-2xl">
+      
+      <div id="canvasWrapper" class="w-full flex justify-center items-center py-1">
+        
+        <!-- MAIN CANVAS -->
+        <div id="captureArea" class="w-full max-w-[1280px] aspect-16-9 bg-[#00b0f0] p-4 rounded-xl shadow-2xl flex flex-col justify-between relative overflow-hidden border-2 border-gray-800 bg-cover bg-center gap-3">
+          
+          <!-- LOGO OVERLAY (Draggable) -->
+          <img id="logoOverlay" class="draggable" alt="Logo" draggable="false">
+
+          <!-- TIMER VIDEO OVERLAY (Draggable) -->
+          <video id="timerVideoOverlay" class="draggable" playsinline preload="auto"></video>
+
+          <!-- TOP QUESTION BOX (Height Increased to 52% & Optimized Auto-Fit) -->
+          <div id="q-box" class="bg-[#0000ff] rounded-2xl flex items-center justify-center p-3 shadow-lg animate-pop-down text-center draggable relative z-10 overflow-hidden" style="height: 52%; width: 100%;">
+            <h1 id="qText" class="font-bold text-center flex items-center justify-center w-full h-full text-white" style="font-size: 52px; font-family: 'Tiro Devanagari Hindi', serif; overflow-wrap: break-word; word-break: break-word; max-height: 100%;">
+              Question Text Here...
+            </h1>
+          </div>
+
+          <!-- BOTTOM ROW: ANSWER BOX (Left) + TIMER SPACE (Right) -->
+          <div class="flex items-center justify-between relative z-10" style="height: 42%; width: 100%;">
+            
+            <!-- ANSWER BOX -->
+            <div id="ans-box" class="bg-[#800040] rounded-2xl flex items-center justify-center p-3 shadow-lg text-center animate-pop-down draggable relative overflow-hidden" style="width: 68%; height: 100%;">
+              <!-- ANSWER TEXT -->
+              <h2 id="ansText" class="font-bold text-center flex items-center justify-center w-full h-full text-white transition-all opacity-0 draggable relative" style="font-size: 43px; font-family: 'Noto Serif Devanagari', serif; overflow-wrap: break-word; word-break: break-word;">
+                <!-- Answer appears automatically with animation when timer finishes -->
+              </h2>
+            </div>
+
+            <!-- RIGHT SPACE FOR TIMER / DECORATION -->
+            <div class="flex items-center justify-center relative" style="width: 28%; height: 100%;">
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Control Bar -->
+      <div class="flex flex-wrap gap-3 mt-3 items-center bg-gray-950 px-4 py-2 rounded-lg border border-gray-800">
+        <button onclick="prevQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-4 py-1.5 rounded text-xs font-bold transition">◀ Previous</button>
+        <span id="pageIndicator" class="text-gray-300 font-medium px-3 text-xs">Slide 1 / 1</span>
+        <button onclick="nextQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-4 py-1.5 rounded text-xs font-bold transition">Next ▶</button>
+        <button id="showAnsBtn" onclick="revealAnswer()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded text-xs font-bold transition">💡 Show Answer</button>
+        <button id="startTimerBtn" onclick="startQuizTimer()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-1.5 rounded text-xs font-bold transition">⏱ START TIMER</button>
+        <button onclick="resetPositions()" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs font-semibold transition ml-auto">🔄 Reset Positions</button>
+      </div>
+
+      <!-- Audio Editor Style Waveform Timeline (Min 30s per screen + Horizontal Scroll + Splits) -->
+      <div class="w-full max-w-[1280px] mt-3 bg-[#1b1f27] rounded-xl border border-gray-700 shadow-xl overflow-hidden">
+        <!-- Top Transport & Screen Window Toolbar (Single-line compact controls) -->
+        <div class="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-[#232833] border-b border-gray-700 overflow-x-auto whitespace-nowrap">
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span class="text-[11px] font-bold text-cyan-400">🎛️ Waveform Track</span>
+            <span id="audioFileName" class="text-[10px] text-gray-300 truncate max-w-[110px]">No audio loaded</span>
+          </div>
+
+          <div class="flex items-center gap-1 shrink-0">
+            <button id="toggleAudioPlayBtn" onclick="toggleAudioPlayback()" class="bg-amber-600 hover:bg-amber-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
+              ▶ Play
+            </button>
+            <button id="restartAudioBtn" onclick="restartAudioFromBeginning()" class="bg-sky-600 hover:bg-sky-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition" title="Audio ko shuru se play karein">
+              ⏮ Restart
+            </button>
+            <button onclick="addAudioSplitPoint()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
+              ✂️ Split & Timer ON
+            </button>
+            <select id="autoSilenceMinSec" title="Minimum silence duration to detect" class="bg-gray-800 border border-gray-600 text-amber-300 px-1.5 py-0.5 rounded text-[10px] font-semibold">
+              <option value="3.5" selected>Silence ≥ 3.5s</option>
+              <option value="4.0">Silence ≥ 4.0s</option>
+            </select>
+            <button id="autoSplitSilenceBtn" onclick="autoDetectSilenceSplits()" title="Auto-detect 3.5s/4s silence start and add T1, T2... splits" class="bg-violet-600 hover:bg-violet-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
+              ⚡ Auto Split
+            </button>
+            <button onclick="changeVisibleSeconds(10)" title="Show More Seconds per Screen (Zoom Out)" class="bg-gray-700 hover:bg-gray-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
+              ➖
+            </button>
+            <span id="waveWindowLabel" class="text-[10px] font-mono text-cyan-300 px-0.5" title="Seconds visible in 1 screen">30s/screen</span>
+            <button onclick="changeVisibleSeconds(-5)" title="Show Fewer Seconds per Screen (Zoom In)" class="bg-gray-700 hover:bg-gray-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold transition">
+              ➕
+            </button>
+            <label class="bg-amber-600 hover:bg-amber-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer transition shadow">
+              🎵 Audio
+              <input type="file" id="audioUpload" accept="audio/*" class="hidden" onchange="loadQuizAudio(event)">
+            </label>
+            <button onclick="clearAudioSplitPoints()" class="bg-red-950/80 hover:bg-red-900 border border-red-700/60 text-red-200 px-1.5 py-0.5 rounded text-[10px] font-semibold transition">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <audio id="quizAudioPlayer" preload="metadata" class="hidden"></audio>
+
+        <!-- Scrollable Timeline Body (Ruler + Waveform Canvas + Split Markers) -->
+        <div id="waveformScrollContainer" onscroll="syncTimelineScroll()" onwheel="handleWaveformWheel(event)" class="relative w-full overflow-x-scroll editor-scroll bg-[#141820]">
+          <div id="waveformInnerTrack" class="relative min-w-full" style="width: 100%;">
+            <!-- Time Ruler -->
+            <canvas id="timeRulerCanvas" class="block h-6 cursor-pointer border-b border-gray-800"></canvas>
+
+            <!-- Waveform Track Area -->
+            <div id="waveformBox" class="relative h-28 cursor-pointer select-none">
+              <canvas id="waveformCanvas" class="block w-full h-full"></canvas>
+              <div id="splitMarkersContainer" class="absolute inset-0 pointer-events-none z-20"></div>
+              <div id="playheadLine" class="absolute top-0 bottom-0 w-[2px] bg-yellow-300 pointer-events-none z-30" style="left: 0px;">
+                <div class="w-2.5 h-2.5 bg-yellow-300 rounded-full -translate-x-1 -translate-y-0.5 shadow"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dedicated Horizontal Scroll Navigator Bar -->
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-[#181c24] border-t border-gray-800">
+          <button onclick="nudgeTimelineScroll(-0.4)" class="bg-gray-800 hover:bg-gray-700 text-cyan-300 px-2 py-0.5 rounded text-[11px] font-bold transition">
+            ◀ Scroll
+          </button>
+          <input id="timelineScrollSlider" type="range" min="0" max="1000" value="0" oninput="onScrollSliderInput(this.value)" class="flex-1 accent-cyan-400 cursor-pointer h-1.5">
+          <button onclick="nudgeTimelineScroll(0.4)" class="bg-gray-800 hover:bg-gray-700 text-cyan-300 px-2 py-0.5 rounded text-[11px] font-bold transition">
+            Scroll ▶
+          </button>
+          <span id="visibleRangeLabel" class="text-[10px] font-mono text-gray-400 whitespace-nowrap">00:00 - 00:30</span>
+        </div>
+
+        <!-- Bottom Status & Split Points Strip -->
+        <div class="px-3 py-2 bg-[#232833] border-t border-gray-700 space-y-1.5">
+          <div class="flex flex-wrap items-center justify-between text-[11px] text-gray-300 gap-2">
+            <span>Pos: <strong id="audioTimeDisplay" class="font-mono text-yellow-300">00:00.0 / 00:00.0</strong></span>
+            <span>Splits (Timers): <strong id="splitCountDisplay" class="text-emerald-400">0</strong></span>
+          </div>
+
+          <div id="splitPointsList" class="flex flex-wrap gap-1.5 max-h-20 overflow-y-auto editor-scroll">
+            <span class="text-[11px] text-gray-400">Ek screen mein kam se kam 30s audio dikhega. "Auto Split" dabayein ya T1/T2 marker ko drag karke aage-pichhe set karein.</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Controls Sidebar -->
+    <section class="lg:col-span-4 flex flex-col gap-3 max-h-[780px] overflow-y-auto pr-1">
+      
+      <!-- Font Family Controls -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🔤 Font Family Controls</h2>
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Question Text Font:</label>
+            <select id="qFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+              <option value="'Tiro Devanagari Hindi', serif" selected>Tiro Devanagari Hindi (Default)</option>
+              <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
+              <option value="'Hind', sans-serif">Hind</option>
+              <option value="'Mukta', sans-serif">Mukta</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Text Font:</label>
+            <select id="ansFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+              <option value="'Noto Serif Devanagari', serif" selected>Noto Serif Devanagari (Default)</option>
+              <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari Hindi</option>
+              <option value="'Hind', sans-serif">Hind</option>
+              <option value="'Mukta', sans-serif">Mukta</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Size Controls -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">📐 Max Size Controls (Auto-Adjusts Down)</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Question Font Size (<span id="qFontSizeVal">52</span>px)</label>
+            <input type="range" id="qFontSize" min="16" max="80" value="52" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block">Answer Font Size (<span id="ansFontSizeVal">43</span>px)</label>
+            <input type="range" id="ansFontSize" min="16" max="80" value="43" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Logo Size Control -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-2">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🏷️ Logo Size Control</h2>
+        <div>
+          <label class="text-[10px] text-gray-300 block mb-1">Logo Size: <span id="logoSizeVal">120</span>px</label>
+          <input id="logoSize" type="range" min="30" max="360" value="120" oninput="applyLogoSize()" class="w-full accent-pink-500">
+        </div>
+      </div>
+
+      <!-- Color Controls -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-3">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🎨 Colors</h2>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Question Box Color</label>
+            <input type="color" id="qBgColor" value="#0000ff" oninput="applyStyles()" class="w-full h-7 bg-gray-900 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Box Color</label>
+            <input type="color" id="ansBgColor" value="#800040" oninput="applyStyles()" class="w-full h-7 bg-gray-900 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Question Text Color</label>
+            <input type="color" id="qTextColor" value="#ffffff" oninput="applyStyles()" class="w-full h-7 bg-gray-900 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Text Color</label>
+            <input type="color" id="ansTextColor" value="#ffffff" oninput="applyStyles()" class="w-full h-7 bg-gray-900 rounded cursor-pointer">
+          </div>
+        </div>
+      </div>
+
+      <!-- Timer Video Settings -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-2">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">⏱️ Timer Video Settings</h2>
+        <label class="block bg-red-600 hover:bg-red-700 text-white text-center px-3 py-2 rounded text-xs font-bold cursor-pointer transition">
+          Upload Timer Video
+          <input id="timerVideoUpload" type="file" accept="video/*" class="hidden" onchange="loadTimerVideo(event)">
+        </label>
+        <div>
+          <label class="text-[10px] text-gray-400 block mb-1">Timer Video Size: <span id="timerVideoSizeVal">359</span>px</label>
+          <input id="timerVideoSize" type="range" min="80" max="600" value="359" oninput="applyTimerVideoSize()" class="w-full accent-yellow-500">
+        </div>
+      </div>
+
+      <!-- Manual Content Editor -->
+      <div class="bg-gray-800 p-4 rounded-xl border border-gray-700 shadow-lg space-y-2">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">✏️ Edit Current Slide</h2>
+        <div>
+          <label class="text-[10px] text-gray-400 block">Question:</label>
+          <textarea id="editQuestionInput" rows="2" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white focus:outline-none"></textarea>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-400 block">Correct Answer Text:</label>
+          <input type="text" id="editAnswerInput" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white">
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Bulk Question Upload Modal -->
+  <div id="questionModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-800 w-full max-w-2xl p-5 rounded-xl border border-gray-700 flex flex-col gap-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+        <h2 class="text-base font-bold text-yellow-400">Manage & Bulk Upload Questions</h2>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+      </div>
+      <p class="text-xs text-gray-300">
+        Enter questions line-by-line in Pipe format:<br>
+        <code class="text-yellow-400">Question Text | Correct Answer Text</code>
+      </p>
+      <textarea id="bulkInput" rows="8" class="w-full bg-gray-900 border border-gray-700 p-2.5 rounded text-white font-mono text-xs focus:border-yellow-500 focus:outline-none" placeholder="What is the capital of India? | New Delhi
+Which planet is known as the Red Planet? | Mars"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-3.5 py-1.5 rounded text-xs font-semibold">Cancel</button>
+        <button onclick="saveBulkQuestions()" class="bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded text-xs font-semibold">Load Questions</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let questions = [
+      {
+        q: "What is the capital of India?",
+        answer: "New Delhi"
+      }
+    ];
+    let currentIndex = 0;
+    let timerVideoObjectUrl = null;
+    let autoNextTimeout = null;
+
+    // Audio Upload, Editor Waveform Timeline (Min 30s per screen) & Split Timer State
+    let quizAudioObjectUrl = null;
+    let audioSplitPoints = [];
+    let lastAudioTime = 0;
+    let waveformPeaks = [];
+    let decodedAudioChannelData = null;
+    let decodedAudioSampleRate = 44100;
+    let decodedAudioDuration = 0;
+    let visibleSecondsPerScreen = 30;
+    let isSeekingWaveform = false;
+    let draggingSplitId = null;
+
+    function formatPreciseTime(seconds) {
+      if (!isFinite(seconds) || seconds < 0) seconds = 0;
+      const mins = Math.floor(seconds / 60);
+      const secs = (seconds % 60).toFixed(1).padStart(4, '0');
+      return `${String(mins).padStart(2, '0')}:${secs}`;
+    }
+
+    function formatRulerTick(seconds) {
+      if (!isFinite(seconds) || seconds < 0) seconds = 0;
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    }
+
+    async function buildWaveformPeaks(file) {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const arrayBuffer = await file.arrayBuffer();
+        const audioCtx = new AudioCtx();
+        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+        const channelData = decoded.getChannelData(0);
+        decodedAudioChannelData = new Float32Array(channelData);
+        decodedAudioSampleRate = decoded.sampleRate || 44100;
+        decodedAudioDuration = decoded.duration || 0;
+
+        const totalSamples = Math.min(4000, Math.max(1200, Math.ceil(decoded.duration * 15)));
+        const blockSize = Math.max(1, Math.floor(channelData.length / totalSamples));
+        const peaks = [];
+
+        for (let i = 0; i < totalSamples; i++) {
+          const start = i * blockSize;
+          const end = Math.min(channelData.length, start + blockSize);
+          let minVal = 1;
+          let maxVal = -1;
+          for (let j = start; j < end; j++) {
+            const v = channelData[j];
+            if (v < minVal) minVal = v;
+            if (v > maxVal) maxVal = v;
+          }
+          peaks.push({ min: minVal, max: maxVal });
+        }
+
+        waveformPeaks = peaks;
+        if (audioCtx.state !== 'closed') {
+          await audioCtx.close().catch(() => {});
+        }
+      } catch (err) {
+        decodedAudioChannelData = null;
+        decodedAudioDuration = 0;
+        waveformPeaks = Array.from({ length: 1200 }, (_, idx) => {
+          const amp = 0.2 + 0.65 * Math.abs(Math.sin(idx * 0.14));
+          return { min: -amp, max: amp };
+        });
+      }
+      renderEditorTimeline();
+    }
+
+    function detectSilenceStartTimes(minSilenceSec) {
+      const audio = document.getElementById('quizAudioPlayer');
+      const totalDur = decodedAudioDuration > 0
+        ? decodedAudioDuration
+        : ((audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0);
+
+      if (!decodedAudioChannelData || !decodedAudioChannelData.length || totalDur <= 0) {
+        return [];
+      }
+
+      const sr = decodedAudioSampleRate || 44100;
+      const frameSec = 0.05;
+      const frameSamples = Math.max(1, Math.floor(sr * frameSec));
+      const totalFrames = Math.floor(decodedAudioChannelData.length / frameSamples);
+      if (totalFrames <= 0) return [];
+
+      const frameRms = new Float32Array(totalFrames);
+      const sortedRms = [];
+      for (let f = 0; f < totalFrames; f++) {
+        const start = f * frameSamples;
+        const end = Math.min(decodedAudioChannelData.length, start + frameSamples);
+        let sumSq = 0;
+        for (let i = start; i < end; i++) {
+          const s = decodedAudioChannelData[i];
+          sumSq += s * s;
+        }
+        const rms = Math.sqrt(sumSq / Math.max(1, end - start));
+        frameRms[f] = rms;
+        sortedRms.push(rms);
+      }
+
+      sortedRms.sort((a, b) => a - b);
+      const p20 = sortedRms[Math.floor(sortedRms.length * 0.20)] || 0;
+      const silenceThreshold = Math.max(0.012, Math.min(0.055, p20 * 2.2 + 0.006));
+
+      const requiredFrames = Math.max(1, Math.round(minSilenceSec / frameSec));
+      const detectedTimes = [];
+      let silentStartFrame = -1;
+      let silentCount = 0;
+
+      for (let f = 0; f < totalFrames; f++) {
+        if (frameRms[f] <= silenceThreshold) {
+          if (silentCount === 0) silentStartFrame = f;
+          silentCount++;
+        } else {
+          if (silentCount >= requiredFrames && silentStartFrame >= 0) {
+            const startTimeSec = Number((silentStartFrame * frameSec).toFixed(2));
+            if (startTimeSec > 0.2) {
+              detectedTimes.push(startTimeSec);
+            }
+          }
+          silentCount = 0;
+          silentStartFrame = -1;
+        }
+      }
+
+      if (silentCount >= requiredFrames && silentStartFrame >= 0) {
+        const startTimeSec = Number((silentStartFrame * frameSec).toFixed(2));
+        if (startTimeSec > 0.2) {
+          detectedTimes.push(startTimeSec);
+        }
+      }
+
+      return detectedTimes;
+    }
+
+    function autoDetectSilenceSplits() {
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!audio.src) {
+        alert('Pehle Audio File Upload karein.');
+        return;
+      }
+
+      if (!decodedAudioChannelData) {
+        alert('Audio waveform abhi decode ho raha hai ya decode nahi ho paya. 1-2 second baad dobara try karein.');
+        return;
+      }
+
+      const selectEl = document.getElementById('autoSilenceMinSec');
+      const minSilenceSec = parseFloat(selectEl ? selectEl.value : '3.5') || 3.5;
+      const silenceStarts = detectSilenceStartTimes(minSilenceSec);
+
+      if (!silenceStarts.length) {
+        alert(`Poore audio mein kam se kam ${minSilenceSec}s ka continuous silent hissa nahi mila.`);
+        return;
+      }
+
+      const merged = [...audioSplitPoints];
+      for (const t of silenceStarts) {
+        const alreadyExists = merged.some(sp => Math.abs(sp.time - t) < 0.8);
+        if (!alreadyExists) {
+          merged.push({
+            id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            time: t,
+            timerEnabled: true,
+            triggered: false
+          });
+        }
+      }
+
+      merged.sort((a, b) => a.time - b.time);
+      audioSplitPoints = merged;
+      lastAudioTime = audio.currentTime || 0;
+
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function getTrackWidthPx() {
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      const audio = document.getElementById('quizAudioPlayer');
+      const viewWidth = scrollContainer ? (scrollContainer.clientWidth || 760) : 760;
+      const duration = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 30;
+
+      const screensCount = Math.max(1, duration / visibleSecondsPerScreen);
+      return Math.max(viewWidth, Math.round(viewWidth * screensCount));
+    }
+
+    function drawTimeRuler(trackWidth) {
+      const ruler = document.getElementById('timeRulerCanvas');
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!ruler) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const height = 24;
+      ruler.style.width = `${trackWidth}px`;
+      ruler.style.height = `${height}px`;
+      ruler.width = Math.floor(trackWidth * dpr);
+      ruler.height = Math.floor(height * dpr);
+
+      const ctx = ruler.getContext('2d');
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, trackWidth, height);
+      ctx.fillStyle = '#1b202b';
+      ctx.fillRect(0, 0, trackWidth, height);
+
+      const duration = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 30;
+      const pxPerSec = trackWidth / duration;
+
+      const candidates = [1, 2, 5, 10, 15, 30, 60];
+      let stepSec = 5;
+      for (const c of candidates) {
+        if (c * pxPerSec >= 65) {
+          stepSec = c;
+          break;
+        }
+      }
+
+      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.textBaseline = 'top';
+
+      for (let t = 0; t <= duration + 0.001; t += stepSec) {
+        const x = Math.round(t * pxPerSec);
+        ctx.strokeStyle = '#4b5563';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x + 0.5, 12);
+        ctx.lineTo(x + 0.5, height);
+        ctx.stroke();
+
+        const midX = Math.round((t + stepSec / 2) * pxPerSec);
+        if (midX < trackWidth) {
+          ctx.strokeStyle = '#334155';
+          ctx.beginPath();
+          ctx.moveTo(midX + 0.5, 17);
+          ctx.lineTo(midX + 0.5, height);
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#9ca3af';
+        ctx.fillText(formatRulerTick(t), x + 3, 2);
+      }
+
+      ctx.restore();
+    }
+
+    function drawWaveformTrack(trackWidth) {
+      const canvas = document.getElementById('waveformCanvas');
+      const box = document.getElementById('waveformBox');
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!canvas || !box) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const height = box.clientHeight || 112;
+      canvas.style.width = `${trackWidth}px`;
+      canvas.style.height = `${height}px`;
+      canvas.width = Math.floor(trackWidth * dpr);
+      canvas.height = Math.floor(height * dpr);
+
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, trackWidth, height);
+
+      const centerY = height / 2;
+      ctx.strokeStyle = '#2d3748';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, centerY);
+      ctx.lineTo(trackWidth, centerY);
+      ctx.stroke();
+
+      const dur = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0;
+      const cur = (audio && audio.currentTime) ? audio.currentTime : 0;
+      const progress = dur > 0 ? Math.min(1, Math.max(0, cur / dur)) : 0;
+      const playheadX = progress * trackWidth;
+
+      if (!waveformPeaks.length) {
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('Audio upload karne par yahan waveform dikhega (1 screen = kam se kam 30s)...', 14, centerY + 4);
+        ctx.restore();
+        return;
+      }
+
+      const peaks = waveformPeaks;
+      const count = peaks.length;
+      const step = trackWidth / count;
+
+      for (let i = 0; i < count; i++) {
+        const x = i * step;
+        const p = peaks[i];
+        const amp = Math.min(1, Math.max(Math.abs(p.min), Math.abs(p.max)));
+        const barHalfH = Math.max(1.5, amp * (centerY - 6));
+
+        ctx.fillStyle = x <= playheadX ? '#22d3ee' : '#3b82f6';
+        ctx.fillRect(x, centerY - barHalfH, Math.max(1.2, step * 0.82), barHalfH * 2);
+      }
+
+      ctx.restore();
+    }
+
+    function updateScrollUI(trackWidth) {
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      const slider = document.getElementById('timelineScrollSlider');
+      const rangeLabel = document.getElementById('visibleRangeLabel');
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!scrollContainer) return;
+
+      const maxScroll = Math.max(0, trackWidth - scrollContainer.clientWidth);
+      if (slider) {
+        slider.disabled = maxScroll <= 0;
+        slider.value = maxScroll > 0 ? Math.round((scrollContainer.scrollLeft / maxScroll) * 1000) : 0;
+      }
+
+      const dur = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 30;
+      const startSec = (scrollContainer.scrollLeft / trackWidth) * dur;
+      const endSec = Math.min(dur, ((scrollContainer.scrollLeft + scrollContainer.clientWidth) / trackWidth) * dur);
+      if (rangeLabel) {
+        rangeLabel.textContent = `${formatRulerTick(startSec)} - ${formatRulerTick(endSec)}`;
+      }
+    }
+
+    function updatePlayheadAndMarkers(trackWidth) {
+      const audio = document.getElementById('quizAudioPlayer');
+      const playhead = document.getElementById('playheadLine');
+      const markersContainer = document.getElementById('splitMarkersContainer');
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+
+      const dur = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0;
+      const cur = (audio && audio.currentTime) ? audio.currentTime : 0;
+      const progress = dur > 0 ? Math.min(1, Math.max(0, cur / dur)) : 0;
+      const px = progress * trackWidth;
+
+      if (playhead) {
+        playhead.style.left = `${px}px`;
+      }
+
+      if (audio && !audio.paused && !isSeekingWaveform && !draggingSplitId && scrollContainer) {
+        const viewW = scrollContainer.clientWidth;
+        const scrollL = scrollContainer.scrollLeft;
+        if (px > scrollL + viewW * 0.88 || px < scrollL) {
+          scrollContainer.scrollLeft = Math.max(0, px - viewW * 0.25);
+        }
+      }
+
+      updateScrollUI(trackWidth);
+
+      if (!markersContainer) return;
+      markersContainer.innerHTML = '';
+
+      if (dur <= 0) return;
+
+      audioSplitPoints.forEach((sp, idx) => {
+        const pct = Math.min(100, Math.max(0, (sp.time / dur) * 100));
+        const mPos = (pct / 100) * trackWidth;
+
+        const marker = document.createElement('div');
+        marker.title = `Drag to move T${idx + 1} (${formatPreciseTime(sp.time)})`;
+        marker.className = `absolute top-0 bottom-0 w-[2px] cursor-ew-resize pointer-events-auto ${sp.timerEnabled ? 'bg-emerald-400' : 'bg-gray-500'}`;
+        marker.style.left = `${mPos}px`;
+
+        const tag = document.createElement('button');
+        tag.type = 'button';
+        tag.textContent = `T${idx + 1}`;
+        tag.title = `Drag T${idx + 1} left/right (${formatPreciseTime(sp.time)})`;
+        tag.className = `text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-b cursor-ew-resize select-none shadow ${
+          sp.timerEnabled ? 'bg-emerald-500 text-gray-950' : 'bg-gray-600 text-gray-200'
+        }`;
+
+        const startDrag = (e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          draggingSplitId = sp.id;
+          marker.setPointerCapture(e.pointerId);
+        };
+
+        const moveDrag = (e) => {
+          if (draggingSplitId !== sp.id) return;
+          const inner = document.getElementById('waveformInnerTrack');
+          if (!inner) return;
+          const rect = inner.getBoundingClientRect();
+          const ratio = Math.min(1, Math.max(0, (e.clientX - rect.left) / rect.width));
+          const newTime = Number((ratio * dur).toFixed(2));
+          sp.time = newTime;
+          sp.triggered = false;
+          marker.style.left = `${ratio * trackWidth}px`;
+          marker.title = `Drag to move T${idx + 1} (${formatPreciseTime(sp.time)})`;
+          const timeLabelEl = document.getElementById(`splitTimeLabel_${sp.id}`);
+          if (timeLabelEl) {
+            timeLabelEl.textContent = `T${idx + 1} ${formatPreciseTime(sp.time)}`;
+          }
+        };
+
+        const endDrag = (e) => {
+          if (draggingSplitId !== sp.id) return;
+          draggingSplitId = null;
+          try { marker.releasePointerCapture(e.pointerId); } catch (err) {}
+          audioSplitPoints.sort((a, b) => a.time - b.time);
+          renderSplitPointsUI();
+          renderEditorTimeline();
+        };
+
+        marker.addEventListener('pointerdown', startDrag);
+        marker.addEventListener('pointermove', moveDrag);
+        marker.addEventListener('pointerup', endDrag);
+        marker.addEventListener('pointercancel', endDrag);
+
+        tag.addEventListener('pointerdown', startDrag);
+        tag.addEventListener('pointermove', moveDrag);
+        tag.addEventListener('pointerup', endDrag);
+        tag.addEventListener('pointercancel', endDrag);
+
+        marker.appendChild(tag);
+        markersContainer.appendChild(marker);
+      });
+    }
+
+    function renderEditorTimeline() {
+      const inner = document.getElementById('waveformInnerTrack');
+      const trackWidth = getTrackWidthPx();
+      if (inner) {
+        inner.style.width = `${trackWidth}px`;
+      }
+      const label = document.getElementById('waveWindowLabel');
+      if (label) {
+        label.textContent = `${visibleSecondsPerScreen}s/screen`;
+      }
+      drawTimeRuler(trackWidth);
+      drawWaveformTrack(trackWidth);
+      updatePlayheadAndMarkers(trackWidth);
+    }
+
+    function changeVisibleSeconds(deltaSec) {
+      visibleSecondsPerScreen = Math.min(180, Math.max(15, visibleSecondsPerScreen + deltaSec));
+      renderEditorTimeline();
+    }
+
+    function syncTimelineScroll() {
+      const trackWidth = getTrackWidthPx();
+      updatePlayheadAndMarkers(trackWidth);
+    }
+
+    function onScrollSliderInput(sliderVal) {
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      const trackWidth = getTrackWidthPx();
+      if (!scrollContainer) return;
+      const maxScroll = Math.max(0, trackWidth - scrollContainer.clientWidth);
+      scrollContainer.scrollLeft = (parseFloat(sliderVal) / 1000) * maxScroll;
+      updateScrollUI(trackWidth);
+    }
+
+    function nudgeTimelineScroll(screenFraction) {
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      if (!scrollContainer) return;
+      scrollContainer.scrollLeft += scrollContainer.clientWidth * screenFraction;
+      syncTimelineScroll();
+    }
+
+    function handleWaveformWheel(event) {
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      if (!scrollContainer) return;
+      const trackWidth = getTrackWidthPx();
+      if (trackWidth <= scrollContainer.clientWidth) return;
+
+      if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+        event.preventDefault();
+        scrollContainer.scrollLeft += event.deltaY;
+        syncTimelineScroll();
+      }
+    }
+
+    function seekFromTrackClientX(clientX) {
+      const inner = document.getElementById('waveformInnerTrack');
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!inner || !audio || !audio.src || !isFinite(audio.duration) || audio.duration <= 0) return;
+
+      const rect = inner.getBoundingClientRect();
+      const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      const targetTime = ratio * audio.duration;
+
+      audio.currentTime = targetTime;
+      lastAudioTime = targetTime;
+
+      audioSplitPoints.forEach(sp => {
+        if (sp.time > targetTime + 0.05) {
+          sp.triggered = false;
+        }
+      });
+
+      updateAudioTimeUI();
+    }
+
+    async function loadQuizAudio(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      if (quizAudioObjectUrl) URL.revokeObjectURL(quizAudioObjectUrl);
+      quizAudioObjectUrl = URL.createObjectURL(file);
+
+      const audio = document.getElementById('quizAudioPlayer');
+      audio.src = quizAudioObjectUrl;
+      audio.load();
+
+      document.getElementById('audioFileName').textContent = file.name;
+      audioSplitPoints = [];
+      lastAudioTime = 0;
+      waveformPeaks = [];
+      decodedAudioChannelData = null;
+      decodedAudioDuration = 0;
+      visibleSecondsPerScreen = 30;
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      if (scrollContainer) scrollContainer.scrollLeft = 0;
+
+      renderSplitPointsUI();
+      renderEditorTimeline();
+      await buildWaveformPeaks(file);
+    }
+
+    function toggleAudioPlayback() {
+      const audio = document.getElementById('quizAudioPlayer');
+      const btn = document.getElementById('toggleAudioPlayBtn');
+      if (!audio.src) {
+        alert('Pehle Audio File Upload karein.');
+        return;
+      }
+
+      if (audio.paused) {
+        audio.play().catch(() => {});
+        btn.textContent = '⏸ Pause';
+      } else {
+        audio.pause();
+        btn.textContent = '▶ Play';
+      }
+    }
+
+    function restartAudioFromBeginning() {
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!audio.src) {
+        alert('Pehle Audio File Upload karein.');
+        return;
+      }
+
+      audio.currentTime = 0;
+      lastAudioTime = 0;
+      audioSplitPoints.forEach(sp => {
+        sp.triggered = false;
+      });
+      updateAudioTimeUI();
+      audio.play().catch(() => {});
+    }
+
+    function addAudioSplitPoint() {
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!audio.src) {
+        alert('Pehle Audio File Upload karein.');
+        return;
+      }
+
+      const currentTime = Number(audio.currentTime.toFixed(2));
+      const existing = audioSplitPoints.find(sp => Math.abs(sp.time - currentTime) < 0.25);
+      if (existing) {
+        existing.timerEnabled = true;
+        existing.triggered = false;
+      } else {
+        audioSplitPoints.push({
+          id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          time: currentTime,
+          timerEnabled: true,
+          triggered: false
+        });
+        audioSplitPoints.sort((a, b) => a.time - b.time);
+      }
+
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function toggleSplitTimer(splitId) {
+      const target = audioSplitPoints.find(sp => sp.id === splitId);
+      if (!target) return;
+      target.timerEnabled = !target.timerEnabled;
+      target.triggered = false;
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function nudgeSplitTime(splitId, deltaSec) {
+      const audio = document.getElementById('quizAudioPlayer');
+      const dur = (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 99999;
+      const target = audioSplitPoints.find(sp => sp.id === splitId);
+      if (!target) return;
+
+      target.time = Number(Math.min(dur, Math.max(0, target.time + deltaSec)).toFixed(2));
+      target.triggered = false;
+      audioSplitPoints.sort((a, b) => a.time - b.time);
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function jumpToSplit(splitId) {
+      const audio = document.getElementById('quizAudioPlayer');
+      const scrollContainer = document.getElementById('waveformScrollContainer');
+      const target = audioSplitPoints.find(sp => sp.id === splitId);
+      if (!audio.src || !target) return;
+
+      audio.currentTime = target.time;
+      lastAudioTime = target.time;
+      target.triggered = false;
+      audioSplitPoints.forEach(sp => {
+        if (sp.time > target.time) sp.triggered = false;
+      });
+
+      if (scrollContainer && isFinite(audio.duration) && audio.duration > 0) {
+        const trackWidth = getTrackWidthPx();
+        const x = (target.time / audio.duration) * trackWidth;
+        scrollContainer.scrollLeft = Math.max(0, x - scrollContainer.clientWidth * 0.3);
+      }
+
+      updateAudioTimeUI();
+    }
+
+    function removeSplitPoint(splitId) {
+      audioSplitPoints = audioSplitPoints.filter(sp => sp.id !== splitId);
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function clearAudioSplitPoints() {
+      audioSplitPoints = [];
+      renderSplitPointsUI();
+      renderEditorTimeline();
+    }
+
+    function renderSplitPointsUI() {
+      document.getElementById('splitCountDisplay').textContent = audioSplitPoints.length;
+      const listContainer = document.getElementById('splitPointsList');
+      listContainer.innerHTML = '';
+
+      if (!audioSplitPoints.length) {
+        listContainer.innerHTML = '<span class="text-[11px] text-gray-400">Ek screen mein kam se kam 30s audio dikhega. "Auto Split" dabayein ya T1/T2 marker ko drag karke aage-pichhe set karein.</span>';
+        return;
+      }
+
+      audioSplitPoints.forEach((sp, idx) => {
+        const chip = document.createElement('div');
+        chip.className = `flex items-center gap-1 px-2 py-1 rounded text-[11px] border ${
+          sp.timerEnabled
+            ? 'bg-emerald-950/80 border-emerald-600/70 text-emerald-200'
+            : 'bg-gray-900 border-gray-700 text-gray-400'
+        }`;
+
+        const leftBtn = document.createElement('button');
+        leftBtn.type = 'button';
+        leftBtn.textContent = '◀';
+        leftBtn.title = 'Move split 0.2s earlier';
+        leftBtn.className = 'text-[10px] px-1 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-cyan-300 font-bold cursor-pointer';
+        leftBtn.onclick = () => nudgeSplitTime(sp.id, -0.2);
+
+        const jumpBtn = document.createElement('button');
+        jumpBtn.type = 'button';
+        jumpBtn.id = `splitTimeLabel_${sp.id}`;
+        jumpBtn.textContent = `T${idx + 1} ${formatPreciseTime(sp.time)}`;
+        jumpBtn.title = 'Click to jump playhead here (or drag T marker on waveform)';
+        jumpBtn.className = 'font-mono font-semibold hover:underline cursor-pointer';
+        jumpBtn.onclick = () => jumpToSplit(sp.id);
+
+        const rightBtn = document.createElement('button');
+        rightBtn.type = 'button';
+        rightBtn.textContent = '▶';
+        rightBtn.title = 'Move split 0.2s later';
+        rightBtn.className = 'text-[10px] px-1 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-cyan-300 font-bold cursor-pointer';
+        rightBtn.onclick = () => nudgeSplitTime(sp.id, 0.2);
+
+        const timerToggleBtn = document.createElement('button');
+        timerToggleBtn.type = 'button';
+        timerToggleBtn.textContent = sp.timerEnabled ? '⏱ ON' : '⏱ OFF';
+        timerToggleBtn.className = `px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer ${
+          sp.timerEnabled ? 'bg-emerald-600 text-white' : 'bg-gray-700 text-gray-300'
+        }`;
+        timerToggleBtn.onclick = () => toggleSplitTimer(sp.id);
+
+        const delBtn = document.createElement('button');
+        delBtn.type = 'button';
+        delBtn.textContent = '✕';
+        delBtn.className = 'text-red-400 hover:text-red-300 font-bold px-0.5 cursor-pointer';
+        delBtn.onclick = () => removeSplitPoint(sp.id);
+
+        chip.appendChild(leftBtn);
+        chip.appendChild(jumpBtn);
+        chip.appendChild(rightBtn);
+        chip.appendChild(timerToggleBtn);
+        chip.appendChild(delBtn);
+        listContainer.appendChild(chip);
+      });
+    }
+
+    function updateAudioTimeUI() {
+      const audio = document.getElementById('quizAudioPlayer');
+      const cur = audio.currentTime || 0;
+      const dur = (isFinite(audio.duration) && audio.duration > 0) ? audio.duration : 0;
+
+      document.getElementById('audioTimeDisplay').textContent =
+        `${formatPreciseTime(cur)} / ${formatPreciseTime(dur)}`;
+
+      renderEditorTimeline();
+    }
+
+    function checkSplitTimerTriggers() {
+      const audio = document.getElementById('quizAudioPlayer');
+      if (!audio.src || audio.paused) return;
+
+      const curTime = audio.currentTime;
+
+      if (curTime < lastAudioTime - 0.25) {
+        audioSplitPoints.forEach(sp => {
+          sp.triggered = false;
+        });
+      }
+
+      for (const sp of audioSplitPoints) {
+        if (sp.timerEnabled && !sp.triggered && curTime >= sp.time) {
+          sp.triggered = true;
+          startQuizTimer();
+          break;
+        }
+      }
+
+      lastAudioTime = curTime;
+    }
+
+    (function initQuizAudioEvents() {
+      const audio = document.getElementById('quizAudioPlayer');
+      const waveBox = document.getElementById('waveformBox');
+      const ruler = document.getElementById('timeRulerCanvas');
+
+      const attachSeekHandlers = (el) => {
+        if (!el) return;
+        el.addEventListener('pointerdown', (e) => {
+          if (draggingSplitId) return;
+          isSeekingWaveform = true;
+          el.setPointerCapture(e.pointerId);
+          seekFromTrackClientX(e.clientX);
+        });
+        el.addEventListener('pointermove', (e) => {
+          if (draggingSplitId || !isSeekingWaveform) return;
+          seekFromTrackClientX(e.clientX);
+        });
+        el.addEventListener('pointerup', (e) => {
+          isSeekingWaveform = false;
+          try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+        });
+      };
+
+      attachSeekHandlers(waveBox);
+      attachSeekHandlers(ruler);
+
+      if (!audio) return;
+
+      audio.addEventListener('loadedmetadata', () => {
+        updateAudioTimeUI();
+        renderSplitPointsUI();
+      });
+
+      audio.addEventListener('timeupdate', () => {
+        updateAudioTimeUI();
+        checkSplitTimerTriggers();
+      });
+
+      audio.addEventListener('play', () => {
+        document.getElementById('toggleAudioPlayBtn').textContent = '⏸ Pause';
+      });
+
+      audio.addEventListener('pause', () => {
+        document.getElementById('toggleAudioPlayBtn').textContent = '▶ Play';
+      });
+
+      audio.addEventListener('ended', () => {
+        document.getElementById('toggleAudioPlayBtn').textContent = '▶ Play';
+        audioSplitPoints.forEach(sp => {
+          sp.triggered = false;
+        });
+        lastAudioTime = 0;
+        updateAudioTimeUI();
+      });
+    })();
+
+    // Enhanced Automatic Text Scaling & Line-Height Adjustment
+    function autoFitText(textEl, containerEl, targetFontSize) {
+      if (!textEl || !containerEl) return;
+      
+      let currentSize = parseFloat(targetFontSize);
+      const minSize = 12;
+
+      textEl.style.fontSize = currentSize + 'px';
+      textEl.style.lineHeight = '1.2';
+
+      while ((textEl.scrollHeight > containerEl.clientHeight || textEl.scrollWidth > containerEl.clientWidth) && currentSize > minSize) {
+        currentSize -= 0.5;
+        textEl.style.fontSize = currentSize + 'px';
+        
+        if (currentSize < targetFontSize * 0.8) {
+          textEl.style.lineHeight = '1.1';
+        } else {
+          textEl.style.lineHeight = '1.15';
+        }
+      }
+    }
+
+    function applyStyles() {
+      const qFontSize = document.getElementById('qFontSize').value;
+      const ansFontSize = document.getElementById('ansFontSize').value;
+      const qFontFamily = document.getElementById('qFontFamily').value;
+      const ansFontFamily = document.getElementById('ansFontFamily').value;
+
+      document.getElementById('qFontSizeVal').textContent = qFontSize;
+      document.getElementById('ansFontSizeVal').textContent = ansFontSize;
+
+      const qBox = document.getElementById('q-box');
+      const qText = document.getElementById('qText');
+      const ansBox = document.getElementById('ans-box');
+      const ansText = document.getElementById('ansText');
+
+      qBox.style.backgroundColor = document.getElementById('qBgColor').value;
+      qText.style.color = document.getElementById('qTextColor').value;
+      qText.style.fontFamily = qFontFamily;
+
+      ansBox.style.backgroundColor = document.getElementById('ansBgColor').value;
+      ansText.style.color = document.getElementById('ansTextColor').value;
+      ansText.style.fontFamily = ansFontFamily;
+
+      autoFitText(qText, qBox, qFontSize);
+      autoFitText(ansText, ansBox, ansFontSize);
+    }
+
+    function applyLogoSize() {
+      const size = document.getElementById('logoSize').value || 120;
+      document.getElementById('logoSizeVal').textContent = size;
+      const logo = document.getElementById('logoOverlay');
+      logo.style.width = size + 'px';
+      logo.style.height = size + 'px';
+    }
+
+    function renderQuestion() {
+      if (!questions.length) return;
+      stopQuizTimer();
+      if (autoNextTimeout) clearTimeout(autoNextTimeout);
+
+      const ansText = document.getElementById('ansText');
+      ansText.classList.remove('animate-ans-reveal');
+      ansText.classList.add('opacity-0');
+
+      const qBox = document.getElementById('q-box');
+      const ansBox = document.getElementById('ans-box');
+      qBox.classList.remove('animate-pop-down');
+      ansBox.classList.remove('animate-pop-down');
+      void qBox.offsetWidth;
+      qBox.classList.add('animate-pop-down');
+      ansBox.classList.add('animate-pop-down');
+
+      const cur = questions[currentIndex];
+      document.getElementById('qText').textContent = cur.q;
+      ansText.textContent = cur.answer;
+
+      document.getElementById('editQuestionInput').value = cur.q;
+      document.getElementById('editAnswerInput').value = cur.answer;
+
+      document.getElementById('pageIndicator').textContent = `Slide ${currentIndex + 1} / ${questions.length}`;
+      
+      setTimeout(() => {
+        applyStyles();
+      }, 10);
+    }
+
+    function revealAnswer() {
+      const ansText = document.getElementById('ansText');
+      ansText.classList.remove('opacity-0');
+      ansText.classList.remove('animate-ans-reveal');
+      void ansText.offsetWidth;
+      ansText.classList.add('animate-ans-reveal');
+    }
+
+    function updateSlideContent() {
+      const qVal = document.getElementById('editQuestionInput').value;
+      const ansVal = document.getElementById('editAnswerInput').value;
+
+      questions[currentIndex].q = qVal;
+      questions[currentIndex].answer = ansVal;
+
+      document.getElementById('qText').textContent = qVal;
+      document.getElementById('ansText').textContent = ansVal;
+
+      applyStyles();
+    }
+
+    function nextQuestion() {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+      }
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+      }
+    }
+
+    function openModal() { document.getElementById('questionModal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('questionModal').classList.add('hidden'); }
+    
+    function saveBulkQuestions() {
+      const text = document.getElementById('bulkInput').value.trim();
+      if (!text) return;
+      const lines = text.split('\n');
+      const newQuestions = [];
+      lines.forEach(line => {
+        const parts = line.split('|').map(p => p.trim());
+        if (parts.length >= 2) {
+          newQuestions.push({
+            q: parts[0],
+            answer: parts[1]
+          });
+        }
+      });
+      if (newQuestions.length > 0) {
+        questions = newQuestions;
+        currentIndex = 0;
+        renderQuestion();
+        closeModal();
+      }
+    }
+
+    function loadTimerVideo(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (timerVideoObjectUrl) URL.revokeObjectURL(timerVideoObjectUrl);
+      timerVideoObjectUrl = URL.createObjectURL(file);
+      const video = document.getElementById('timerVideoOverlay');
+      video.src = timerVideoObjectUrl;
+      applyTimerVideoSize();
+      
+      video.onended = () => {
+        video.style.display = 'none';
+
+        revealAnswer();
+
+        const btn = document.getElementById('startTimerBtn');
+        btn.disabled = false;
+        btn.textContent = '⏱ START TIMER';
+
+        if (autoNextTimeout) clearTimeout(autoNextTimeout);
+        autoNextTimeout = setTimeout(() => {
+          if (currentIndex < questions.length - 1) {
+            nextQuestion();
+          }
+        }, 5000);
+      };
+    }
+
+    function applyTimerVideoSize() {
+      const size = document.getElementById('timerVideoSize').value || 359;
+      document.getElementById('timerVideoSizeVal').textContent = size;
+      document.getElementById('timerVideoOverlay').style.width = size + 'px';
+    }
+
+    function startQuizTimer() {
+      const video = document.getElementById('timerVideoOverlay');
+      if (!video.src) {
+        alert('Pehle Timer Video Upload karein.');
+        return;
+      }
+      
+      const ansText = document.getElementById('ansText');
+      ansText.classList.add('opacity-0');
+      ansText.classList.remove('animate-ans-reveal');
+      if (autoNextTimeout) clearTimeout(autoNextTimeout);
+
+      video.currentTime = 0;
+      video.style.display = 'block';
+      const btn = document.getElementById('startTimerBtn');
+      btn.textContent = '⏱ TIMER RUNNING';
+      btn.disabled = true;
+      video.play().catch(() => {
+        btn.disabled = false;
+        btn.textContent = '⏱ START TIMER';
+      });
+    }
+
+    function stopQuizTimer() {
+      const video = document.getElementById('timerVideoOverlay');
+      if (video && !video.paused) video.pause();
+      if (video) video.style.display = 'none';
+      const btn = document.getElementById('startTimerBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '⏱ START TIMER';
+      }
+    }
+
+    // Advanced Drag Functionality
+    function enableDragging(element) {
+      let isDragging = false;
+      let startX, startY, initialLeft, initialTop;
+
+      element.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        
+        const computedStyle = window.getComputedStyle(element);
+        initialLeft = parseFloat(computedStyle.left) || 0;
+        initialTop = parseFloat(computedStyle.top) || 0;
+
+        element.setPointerCapture(e.pointerId);
+      });
+
+      element.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        
+        element.style.left = `${initialLeft + dx}px`;
+        element.style.top = `${initialTop + dy}px`;
+      });
+
+      element.addEventListener('pointerup', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        try { element.releasePointerCapture(e.pointerId); } catch(err){}
+      });
+    }
+
+    enableDragging(document.getElementById('logoOverlay'));
+    enableDragging(document.getElementById('timerVideoOverlay'));
+    enableDragging(document.getElementById('q-box'));
+    enableDragging(document.getElementById('ans-box'));
+    enableDragging(document.getElementById('ansText'));
+
+    function resetPositions() {
+      const draggableElements = [
+        document.getElementById('logoOverlay'),
+        document.getElementById('timerVideoOverlay'),
+        document.getElementById('q-box'),
+        document.getElementById('ans-box'),
+        document.getElementById('ansText')
+      ];
+
+      draggableElements.forEach(el => {
+        el.style.left = '';
+        el.style.top = '';
+      });
+    }
+
+    function loadLogo(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const logo = document.getElementById('logoOverlay');
+        logo.src = e.target.result;
+        logo.style.display = 'block';
+        applyLogoSize();
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function loadBackground(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('captureArea').style.backgroundImage = `url('${e.target.result}')`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function downloadPNG() {
+      const canvas = await html2canvas(document.getElementById('captureArea'), { scale: 2 });
+      const link = document.createElement('a');
+      link.download = `Slide_${currentIndex + 1}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    async function downloadAllPNGs() {
+      if (typeof JSZip === 'undefined') return;
+      const zip = new JSZip();
+      const orig = currentIndex;
+
+      for (let i = 0; i < questions.length; i++) {
+        currentIndex = i;
+        renderQuestion();
+        revealAnswer();
+        await new Promise(r => setTimeout(r, 100));
+        const canvas = await html2canvas(document.getElementById('captureArea'), { scale: 2 });
+        const data = canvas.toDataURL('image/png').split(',')[1];
+        zip.file(`Question_${i + 1}.png`, data, { base64: true });
+      }
+
+      currentIndex = orig;
+      renderQuestion();
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.download = 'Quiz_Slides.zip';
+      link.href = URL.createObjectURL(content);
+      link.click();
+    }
+
+    window.addEventListener('resize', () => {
+      applyStyles();
+      renderEditorTimeline();
+    });
+
+    applyLogoSize();
+    renderQuestion();
+    renderEditorTimeline();
+  </script>
+</body>
+</html>

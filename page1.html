@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>No-Options Quiz Slide Automation Tool (9:16 YouTube Shorts)</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hind:wght@400;500;600;700&family=Inter:wght@400;700;900&family=Montserrat:wght@400;700;900&family=Mukta:wght@400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;500;600;700;800;900&family=Noto+Serif:wght@400;700;900&family=Noto+Serif+Devanagari:wght@400;500;600;700;800;900&family=Poppins:wght@400;500;600;700;800;900&family=Roboto:wght@400;500;700;900&family=Tiro+Devanagari+Hindi&display=swap">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    .aspect-9-16 {
+      aspect-ratio: 9 / 16;
+    }
+
+    /* Desktop Default: Main 9:16 canvas constrained strictly within 65% of PC viewport height */
+    #captureArea {
+      height: 65vh;
+      max-height: 65vh;
+      width: auto;
+      aspect-ratio: 9 / 16;
+    }
+
+    /* MOBILE VIEW OPTIMIZATION: 90% Screen Height for 9:16 Quiz Screen + 10% Bottom Bar for START QUIZ (No Scroll Needed) */
+    @media (max-width: 767px) {
+      body {
+        padding: 0 !important;
+        overflow-x: hidden;
+      }
+
+      /* Top 90% viewport area strictly holds the 9:16 quiz canvas centered */
+      #mobileHeroStage {
+        height: 90dvh;
+        min-height: 90dvh;
+        max-height: 90dvh;
+        width: 100vw;
+        padding: 6px 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background: #030712;
+        border-radius: 0 !important;
+        border: none !important;
+      }
+
+      #canvasWrapper {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #captureArea {
+        height: 87dvh !important;
+        max-height: 87dvh !important;
+        max-width: calc(100vw - 16px) !important;
+        width: auto !important;
+        aspect-ratio: 9 / 16;
+      }
+
+      /* Bottom 10% viewport area holds START QUIZ & quick controls cleanly with zero scroll */
+      #mobileBottomBar {
+        height: 10dvh;
+        min-height: 10dvh;
+        max-height: 10dvh;
+        width: 100vw;
+        padding: 0 10px;
+        margin-top: 0 !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        border-top: 1px solid rgba(250, 204, 21, 0.25) !important;
+        background: #090d16;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        position: sticky;
+        bottom: 0;
+        z-index: 40;
+      }
+
+      #quizStatusBanner {
+        display: none;
+      }
+
+      #mobileControlsSection {
+        max-height: none !important;
+        overflow-y: visible !important;
+        padding: 12px;
+      }
+    }
+
+    /* Main Card Intro Animation */
+    @keyframes popDown {
+      0% {
+        margin-top: -55px;
+        transform: translateX(-50%) scale(0.86);
+        opacity: 0;
+      }
+      70% {
+        margin-top: 6px;
+        transform: translateX(-50%) scale(1.02);
+        opacity: 1;
+      }
+      100% {
+        margin-top: 0px;
+        transform: translateX(-50%) scale(1);
+        opacity: 1;
+      }
+    }
+
+    /* Smooth Answer Reveal Pop-Up Animation inside the Main Card */
+    @keyframes answerRevealPop {
+      0% {
+        opacity: 0;
+        transform: translateY(18px) scale(0.82);
+        filter: blur(2px);
+      }
+      55% {
+        opacity: 1;
+        transform: translateY(-4px) scale(1.04);
+        filter: blur(0px);
+      }
+      80% {
+        transform: translateY(1px) scale(0.985);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .animate-pop-down {
+      animation: popDown 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+
+    .answer-box-hidden {
+      opacity: 0;
+      transform: translateY(18px) scale(0.85);
+      pointer-events: none;
+    }
+
+    .answer-box-revealed {
+      opacity: 1 !important;
+      animation: answerRevealPop 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+      pointer-events: auto;
+    }
+
+    #qText, #ansText {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+    }
+
+    .draggable-block {
+      touch-action: none;
+      user-select: none;
+    }
+
+    /* Timer Video Wrapper Styling */
+    #timerBox {
+      touch-action: none;
+      user-select: none;
+      cursor: move;
+      z-index: 35;
+      outline: 1.5px dashed rgba(250, 204, 21, 0.55);
+      outline-offset: 2px;
+      transition: outline-color 0.2s ease;
+    }
+
+    #timerBox:hover,
+    #timerBox:active {
+      outline: 2px dashed rgba(250, 204, 21, 0.95);
+    }
+
+    /* Interactive Corner Resize Handle on Timer Box */
+    #timerResizeHandle {
+      touch-action: none;
+      user-select: none;
+      cursor: nwse-resize;
+      z-index: 40;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col items-center p-2.5 font-sans">
+
+  <!-- Desktop Header -->
+  <header class="hidden md:flex w-full max-w-7xl flex-wrap gap-2 justify-between items-center bg-gray-900 px-3 py-2 rounded-xl shadow-lg border border-gray-800 mb-2.5">
+    <div>
+      <h1 class="text-sm font-bold text-yellow-400">Direct Answer Quiz Automation Tool (9:16 YouTube Shorts)</h1>
+      <p class="text-[11px] text-gray-400">No-Options Mode • 2s Delay -> Timer Appears Below Question -> Auto Hides -> Animated Answer -> 2s Next</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button onclick="openModal()" class="bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg font-semibold text-xs transition shadow">
+        📂 Manage Questions (Bulk)
+      </button>
+      <label class="bg-purple-600 hover:bg-purple-700 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer transition shadow">
+        🖼️ Upload Background
+        <input type="file" id="bgUpload" accept="image/*" class="hidden" onchange="loadBackground(event)">
+      </label>
+      <label class="bg-amber-600 hover:bg-amber-700 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer transition shadow">
+        ⏱️ Upload Timer Video
+        <input type="file" id="timerUploadDesktop" accept="video/*" class="hidden" onchange="loadTimerVideo(event)">
+      </label>
+      <button onclick="downloadPNG()" class="bg-green-600 hover:bg-green-700 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition shadow flex items-center gap-1">
+        ⬇️ Download HD PNG
+      </button>
+      <button onclick="downloadAllPNGs()" class="bg-indigo-600 hover:bg-indigo-700 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition shadow flex items-center gap-1">
+        📦 Download All Images (ZIP)
+      </button>
+    </div>
+  </header>
+
+  <!-- Workspace Container -->
+  <main class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-3 items-start mb-2">
+
+    <!-- Left 9:16 Shorts Canvas Screen (Takes 90% height on Mobile + 10% bottom bar for START QUIZ) -->
+    <section class="lg:col-span-7 flex flex-col items-center justify-center bg-gray-900 md:p-3 rounded-xl border border-gray-800 shadow-2xl w-full">
+
+      <!-- 90% Height Stage on Mobile -->
+      <div id="mobileHeroStage" class="w-full flex flex-col items-center justify-center">
+        <div id="canvasWrapper" class="w-full flex justify-center items-center">
+
+          <!-- MAIN 9:16 SHORTS CANVAS -->
+          <div id="captureArea" class="aspect-9-16 px-3 rounded-2xl shadow-[0_18px_45px_rgba(0,0,0,0.9)] relative overflow-hidden border-2 border-yellow-400/60 bg-cover bg-center" style="background-color: #1E1B4B;">
+
+            <!-- Attractive Glowing Ambient Shapes -->
+            <div class="pointer-events-none absolute -top-14 -left-14 w-40 h-40 bg-cyan-400/20 rounded-full blur-2xl"></div>
+            <div class="pointer-events-none absolute top-1/3 -right-14 w-36 h-36 bg-fuchsia-500/20 rounded-full blur-2xl"></div>
+            <div class="pointer-events-none absolute -bottom-14 left-5 w-44 h-44 bg-yellow-400/20 rounded-full blur-2xl"></div>
+
+            <!-- UNIFIED DRAGGABLE MAIN BOX (Question on Top + Animated Answer Box Inside Underneath) -->
+            <div id="q-box" onclick="handleCardClick(event)" class="draggable-block absolute left-1/2 -translate-x-1/2 rounded-2xl flex flex-col justify-between p-2.5 shadow-[0_14px_30px_rgba(0,0,0,0.55)] border-2 border-white transition-all animate-pop-down text-center overflow-hidden z-20 cursor-ns-resize" style="top: 18%; height: 48%; width: 92%; background-color: #FFF700;">
+
+              <!-- TOP SECTION: QUESTION -->
+              <div id="questionSection" class="w-full flex-1 min-h-0 flex items-center justify-center px-1.5 overflow-hidden">
+                <h1 id="qText" class="font-bold text-center flex items-center justify-center w-full h-full max-h-full" style="font-size: 24px; font-family: 'Tiro Devanagari Hindi', serif; color: #1800B4; line-height: 1.2;">
+                  Loading Question...
+                </h1>
+              </div>
+
+              <!-- BOTTOM INNER BOX: CORRECT ANSWER REVEAL (Appears with animation when timer ends) -->
+              <div id="answerBox" class="answer-box-hidden w-full rounded-xl flex items-center justify-center px-3 py-1.5 shadow-[0_6px_18px_rgba(0,0,0,0.35)] border-2 border-white/80 overflow-hidden flex-shrink-0" style="height: 36%; background-color: #16A34A;">
+                <div id="ansText" class="font-extrabold text-center flex items-center justify-center w-full h-full max-h-full" style="font-size: 18px; font-family: 'Noto Serif Devanagari', serif; color: #FEF08A; line-height: 1.2; text-shadow: 0 2px 5px rgba(0,0,0,0.45);">
+                  Answer Text
+                </div>
+              </div>
+
+            </div>
+
+            <!-- DRAGGABLE & RESIZABLE TIMER VIDEO BOX (Default positioned inside lower portion of #q-box, below question & slightly above bottom) -->
+            <div id="timerBox" onclick="event.stopPropagation()" class="hidden absolute rounded-lg overflow-visible flex items-center justify-center" style="top: 47%; left: 32%; width: 36%; z-index: 35;">
+              <video id="timerVideo" class="w-full h-auto block pointer-events-none rounded-lg" playsinline preload="auto"></video>
+              <!-- Corner Resize Handle (Bada / Chhota karne ke liye) -->
+              <div id="timerResizeHandle" title="Drag to Resize (Bada / Chhota karein)" class="absolute -bottom-2 -right-2 w-5 h-5 bg-yellow-400 hover:bg-yellow-300 border-2 border-gray-950 rounded-full shadow-lg flex items-center justify-center text-[10px] font-black text-gray-950">
+                ⤡
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Bottom 10% Space Bar on Mobile (Contains START QUIZ right at the bottom with zero scrolling) -->
+      <div id="mobileBottomBar" class="flex flex-wrap md:justify-center gap-1.5 md:gap-2 md:mt-3 items-center bg-gray-950 md:px-3.5 md:py-2 rounded-xl border border-gray-800">
+        <!-- Prev / Page / Next compact group -->
+        <div class="flex items-center gap-1">
+          <button onclick="prevQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-2.5 py-2 md:py-1 rounded-lg text-xs font-bold transition" title="Previous">◀</button>
+          <span id="pageIndicator" class="text-gray-200 font-semibold px-1.5 text-[11px] md:text-xs whitespace-nowrap">Q 1/6</span>
+          <button onclick="nextQuestion()" class="bg-gray-800 hover:bg-gray-700 text-yellow-400 px-2.5 py-2 md:py-1 rounded-lg text-xs font-bold transition" title="Next">▶</button>
+        </div>
+
+        <!-- Primary START QUIZ Button -->
+        <button id="startQuizBtn" onclick="startQuizSet()" class="flex-1 md:flex-initial bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 active:scale-95 text-white px-4 py-2.5 md:py-1 rounded-xl md:rounded-lg text-xs md:text-xs font-extrabold tracking-wide transition shadow-[0_0_15px_rgba(220,38,38,0.5)]">
+          ▶ START QUIZ
+        </button>
+
+        <!-- Show Answer & Scroll to Tools -->
+        <div class="flex items-center gap-1">
+          <button id="showAnsBtn" onclick="revealAnswer()" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-2 md:py-1 rounded-lg text-xs font-bold transition" title="Show Answer">💡<span class="hidden md:inline"> Show Answer</span></button>
+          <button onclick="scrollToControls()" class="md:hidden bg-gray-800 hover:bg-gray-700 text-cyan-300 px-2.5 py-2 rounded-lg text-xs font-bold transition" title="Edit & Settings">⚙️</button>
+        </div>
+      </div>
+
+      <!-- Set Status Info (Desktop) -->
+      <div id="quizStatusBanner" class="mt-1.5 text-[11px] text-cyan-300 font-medium text-center">
+        Ready: Click "START QUIZ" (2s delay -> Timer appears below question -> Auto hides -> Animated Answer -> 2s Next).
+      </div>
+
+    </section>
+
+    <!-- Controls Sidebar -->
+    <section id="mobileControlsSection" class="lg:col-span-5 flex flex-col gap-2.5 max-h-[82vh] overflow-y-auto pr-1 w-full">
+
+      <!-- Mobile Quick Action Bar -->
+      <div class="md:hidden bg-gray-900 p-3 rounded-xl border border-gray-800 flex flex-wrap gap-2 justify-between items-center">
+        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="bg-yellow-500 text-gray-950 px-3 py-1.5 rounded-lg font-bold text-xs">
+          ⬆ Back to 9:16 Quiz
+        </button>
+        <button onclick="openModal()" class="bg-blue-600 px-3 py-1.5 rounded-lg font-semibold text-xs">
+          📂 Bulk Questions
+        </button>
+        <label class="bg-purple-600 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer">
+          🖼️ Bg Image
+          <input type="file" accept="image/*" class="hidden" onchange="loadBackground(event)">
+        </label>
+        <label class="bg-amber-600 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer">
+          ⏱️ Timer Video
+          <input type="file" accept="video/*" class="hidden" onchange="loadTimerVideo(event)">
+        </label>
+        <button onclick="downloadPNG()" class="bg-green-600 px-3 py-1.5 rounded-lg font-semibold text-xs">
+          ⬇️ PNG
+        </button>
+        <button onclick="downloadAllPNGs()" class="bg-indigo-600 px-3 py-1.5 rounded-lg font-semibold text-xs">
+          📦 ZIP
+        </button>
+      </div>
+
+      <!-- TIMER VIDEO CONTROLS (Upload, Resize, Drag Position, Blend Mode) -->
+      <div class="bg-gray-800 p-3.5 rounded-xl border border-amber-500/50 shadow-lg space-y-2.5">
+        <div class="flex items-center justify-between border-b border-gray-700 pb-1">
+          <h2 class="text-xs font-bold text-amber-400">⏱️ Timer Video Controls (Upload, Resize & Drag)</h2>
+          <div class="flex items-center gap-1">
+            <button onclick="resetTimerDefaultPosition()" id="resetTimerPosBtn" class="hidden text-[10px] bg-gray-700 hover:bg-gray-600 text-amber-300 px-2 py-0.5 rounded font-semibold transition" title="Box ke niche default jagah par set karein">Default Pos</button>
+            <button onclick="removeTimerVideo()" id="removeTimerBtn" class="hidden text-[10px] bg-red-600/80 hover:bg-red-600 text-white px-2 py-0.5 rounded font-semibold transition">Remove</button>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <label class="flex-1 text-center bg-amber-600 hover:bg-amber-700 text-white py-1.5 px-3 rounded-lg text-xs font-bold cursor-pointer transition shadow">
+            📹 Upload Timer Video (MP4/WebM)
+            <input type="file" accept="video/*" class="hidden" onchange="loadTimerVideo(event)">
+          </label>
+          <button onclick="previewTimerOnce()" id="previewTimerBtn" class="hidden bg-gray-700 hover:bg-gray-600 text-amber-300 py-1.5 px-2.5 rounded-lg text-xs font-bold transition" title="Test Timer Play">
+            ▶ Test
+          </button>
+          <button onclick="showTimerBox()" id="showTimerSetupBtn" class="hidden bg-gray-700 hover:bg-gray-600 text-cyan-300 py-1.5 px-2.5 rounded-lg text-xs font-bold transition" title="Show Timer for Positioning">
+            👁️ Set Pos
+          </button>
+        </div>
+
+        <p id="timerFileStatus" class="text-[10px] text-gray-300">
+          No timer uploaded (Upload karne par box mein question ke niche dikhega; drag & corner ⤡ se bada/chhota karein).
+        </p>
+
+        <!-- Size (Bada / Chhota) & Position Controls -->
+        <div class="grid grid-cols-1 gap-2 pt-1 border-t border-gray-700/70">
+          <div>
+            <label class="text-[10px] text-amber-300 font-semibold block">Timer Size (Chhota / Bada): <span id="timerSizeVal">36</span>%</label>
+            <input type="range" id="timerSizeSlider" min="12" max="95" value="36" oninput="updateTimerTransform()" class="w-full accent-amber-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Left/Right Pos (<span id="timerLeftVal">32</span>%)</label>
+            <input type="range" id="timerLeftSlider" min="0" max="88" value="32" oninput="updateTimerTransform()" class="w-full accent-amber-400">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block">Top/Bottom Pos (<span id="timerTopVal">47</span>%)</label>
+            <input type="range" id="timerTopSlider" min="0" max="88" value="47" oninput="updateTimerTransform()" class="w-full accent-amber-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 items-center pt-1">
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-0.5">Background Blend:</label>
+            <select id="timerBlendMode" onchange="updateTimerTransform()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1 text-[11px]">
+              <option value="normal" selected>Normal (Original)</option>
+              <option value="screen">Screen (Remove Black Bg)</option>
+              <option value="lighten">Lighten (Transparent Dark)</option>
+              <option value="multiply">Multiply (Remove White Bg)</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-1.5 pt-3">
+            <input type="checkbox" id="timerMuteToggle" class="accent-amber-400 w-3.5 h-3.5" onchange="toggleTimerMute()">
+            <label for="timerMuteToggle" class="text-[11px] text-gray-300 cursor-pointer">Mute Timer Sound</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Font Family Controls -->
+      <div class="bg-gray-800 p-3.5 rounded-xl border border-gray-700 shadow-lg space-y-2.5">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🔤 Font Family Controls</h2>
+
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Question Text Font:</label>
+            <select id="qFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+              <option value="'Tiro Devanagari Hindi', serif" selected>Tiro Devanagari Hindi (Default)</option>
+              <option value="'Noto Serif Devanagari', serif">Noto Serif Devanagari</option>
+              <option value="'Noto Serif', serif">Noto Serif Bold</option>
+              <option value="'Hind', sans-serif">Hind</option>
+              <option value="'Mukta', sans-serif">Mukta</option>
+              <option value="'Poppins', sans-serif">Poppins</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Montserrat', sans-serif">Montserrat</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Noto Sans Devanagari', sans-serif">Noto Sans Devanagari</option>
+            </select>
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Text Font:</label>
+            <select id="ansFontFamily" onchange="applyStyles()" class="w-full bg-gray-900 border border-gray-700 text-white rounded p-1.5 text-xs">
+              <option value="'Noto Serif Devanagari', serif" selected>Noto Serif Devanagari (Default)</option>
+              <option value="'Tiro Devanagari Hindi', serif">Tiro Devanagari Hindi</option>
+              <option value="'Noto Serif', serif">Noto Serif Bold</option>
+              <option value="'Hind', sans-serif">Hind</option>
+              <option value="'Mukta', sans-serif">Mukta</option>
+              <option value="'Poppins', sans-serif">Poppins</option>
+              <option value="'Roboto', sans-serif">Roboto</option>
+              <option value="'Montserrat', sans-serif">Montserrat</option>
+              <option value="'Inter', sans-serif">Inter</option>
+              <option value="'Noto Sans Devanagari', sans-serif">Noto Sans Devanagari</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Size, Gap & Position Controls -->
+      <div class="bg-gray-800 p-3.5 rounded-xl border border-gray-700 shadow-lg space-y-2.5">
+        <div class="flex flex-wrap items-center justify-between gap-1 border-b border-gray-700 pb-1.5">
+          <h2 class="text-xs font-bold text-yellow-400">📐 Size, Gap & Position</h2>
+          <div class="flex items-center gap-1">
+            <button id="saveDefaultBtn" onclick="saveCurrentAsDefault()" class="text-[10px] bg-emerald-600 hover:bg-emerald-500 text-white px-2 py-0.5 rounded font-bold transition shadow">💾 Save Default</button>
+            <button onclick="factoryResetSettings()" class="text-[10px] bg-gray-700 hover:bg-gray-600 text-cyan-300 px-2 py-0.5 rounded font-semibold transition">Reset</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Question Text Size (<span id="qFontSizeVal">24</span>px)</label>
+            <input type="range" id="qFontSize" min="14" max="64" value="24" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block">Answer Text Size (<span id="ansFontSizeVal">18</span>px)</label>
+            <input type="range" id="ansFontSize" min="12" max="48" value="18" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Main Box Height (<span id="qBoxHeightVal">48</span>%)</label>
+            <input type="range" id="qBoxHeight" min="26" max="78" value="48" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block">Main Box Width (<span id="qBoxWidthVal">92</span>%)</label>
+            <input type="range" id="qBoxWidth" min="65" max="98" value="92" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Inner Answer Height (<span id="ansBoxHeightVal">36</span>%)</label>
+            <input type="range" id="ansBoxHeight" min="20" max="55" value="36" oninput="applyStyles()" class="w-full accent-yellow-500">
+          </div>
+          <div>
+            <label class="text-[10px] text-cyan-300 font-semibold block">Q & Ans Gap (<span id="innerGapVal">8</span>px)</label>
+            <input type="range" id="innerGap" min="0" max="28" value="8" oninput="applyStyles()" class="w-full accent-cyan-400">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block">Main Box Top Position (<span id="qTopPosVal">18</span>%)</label>
+            <input type="range" id="qTopPos" min="8" max="65" value="18" oninput="syncPositionSliders()" class="w-full accent-yellow-500">
+          </div>
+        </div>
+        <p class="text-[10px] text-gray-400">Tip: Canvas par Main Box aur Timer video ko drag kar sakte hain, aur "💾 Save Default" dabakar apni current setting hamesha ke liye default bana sakte hain.</p>
+      </div>
+
+      <!-- Color Controls -->
+      <div class="bg-gray-800 p-3.5 rounded-xl border border-gray-700 shadow-lg space-y-2">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">🎨 Color Customizer</h2>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Main Box Bg</label>
+            <input type="color" id="qBgColor" value="#FFF700" oninput="applyStyles()" onchange="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Question Text Color</label>
+            <input type="color" id="qTextColor" value="#1800B4" oninput="applyStyles()" onchange="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Box Bg</label>
+            <input type="color" id="ansBgColor" value="#16A34A" oninput="applyStyles()" onchange="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+          </div>
+          <div>
+            <label class="text-[10px] text-gray-300 block mb-1">Answer Text Color</label>
+            <input type="color" id="ansTextColor" value="#FEF08A" oninput="applyStyles()" onchange="applyStyles()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+          </div>
+        </div>
+        <div>
+          <label class="text-[10px] text-gray-300 block mb-1">Canvas Background Fallback</label>
+          <input type="color" id="canvasBgColor" value="#1E1B4B" oninput="handleCanvasBgColorChange()" onchange="handleCanvasBgColorChange()" class="w-full h-7 bg-gray-900 border border-gray-700 rounded cursor-pointer">
+        </div>
+      </div>
+
+      <!-- Manual Content Editor -->
+      <div class="bg-gray-800 p-3.5 rounded-xl border border-gray-700 shadow-lg space-y-2">
+        <h2 class="text-xs font-bold text-yellow-400 border-b border-gray-700 pb-1">✏️ Edit Current Slide</h2>
+        <div>
+          <label class="text-[10px] text-gray-400 block">Question Text:</label>
+          <textarea id="editQuestionInput" rows="2" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-white focus:outline-none"></textarea>
+        </div>
+        <div>
+          <label class="text-[10px] text-green-400 font-semibold block">Correct Answer Text (Reveals after timer):</label>
+          <input type="text" id="editAnswerInput" oninput="updateSlideContent()" class="w-full bg-gray-900 border border-gray-700 rounded p-1.5 text-xs text-yellow-300 font-semibold focus:outline-none">
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Bulk Question Upload Modal -->
+  <div id="questionModal" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+    <div class="bg-gray-800 w-full max-w-2xl p-5 rounded-xl border border-gray-700 flex flex-col gap-3 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-gray-700 pb-2">
+        <h2 class="text-base font-bold text-yellow-400">Manage & Bulk Upload Questions (No-Options Format)</h2>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-white text-lg">✕</button>
+      </div>
+      <p class="text-xs text-gray-300">
+        Enter questions line-by-line in Pipe format:<br>
+        <code class="text-yellow-400">Question Text | Correct Answer Text</code><br>
+        <span class="text-[11px] text-gray-400">(Note: Old 6-part format <code>Question | A | B | C | D | A</code> is also supported automatically!)</span>
+      </p>
+      <textarea id="bulkInput" rows="8" class="w-full bg-gray-900 border border-gray-700 p-2.5 rounded text-white font-mono text-xs focus:border-yellow-500 focus:outline-none" placeholder="भारत की राजधानी क्या है? | नई दिल्ली (New Delhi)
+सूर्य के सबसे नजदीक कौन सा ग्रह है? | बुध (Mercury)
+भारत का राष्ट्रीय पशु कौन सा है? | बाघ (Tiger)"></textarea>
+      <div class="flex justify-end gap-2">
+        <button onclick="closeModal()" class="bg-gray-700 hover:bg-gray-600 px-3.5 py-1.5 rounded text-xs font-semibold">Cancel</button>
+        <button onclick="saveBulkQuestions()" class="bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded text-xs font-semibold">Load Questions</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let questions = [
+      {
+        q: "भारत की राजधानी क्या है? (What is the capital of India?)",
+        answerText: "नई दिल्ली (New Delhi)"
+      },
+      {
+        q: "सूर्य के सबसे नजदीक कौन सा ग्रह है?",
+        answerText: "बुध (Mercury)"
+      },
+      {
+        q: "भारत का राष्ट्रीय पशु कौन सा है?",
+        answerText: "बाघ (Tiger)"
+      },
+      {
+        q: "कंप्यूटर का जनक (Father of Computer) किसे कहा जाता है?",
+        answerText: "चार्ल्स बैबेज (Charles Babbage)"
+      },
+      {
+        q: "विश्व का सबसे बड़ा महासागर कौन सा है?",
+        answerText: "प्रशांत महासागर (Pacific Ocean)"
+      },
+      {
+        q: "भारत की सबसे लंबी नदी कौन सी है?",
+        answerText: "गंगा नदी (Ganga River)"
+      }
+    ];
+
+    let currentIndex = 0;
+    let hasCustomBgImage = false;
+    let hasTimerVideo = false;
+    let timerObjectUrl = null;
+    let isAnswerRevealed = false;
+    let hasUserMovedTimer = false;
+
+    const STORAGE_KEY = 'shorts_no_options_quiz_defaults_v1';
+    const FACTORY_DEFAULTS = {
+      qFontFamily: "'Tiro Devanagari Hindi', serif",
+      ansFontFamily: "'Noto Serif Devanagari', serif",
+      qFontSize: 24,
+      ansFontSize: 18,
+      qBoxHeight: 48,
+      qBoxWidth: 92,
+      ansBoxHeight: 36,
+      innerGap: 8,
+      qTopPos: 18,
+      qBgColor: '#FFF700',
+      qTextColor: '#1800B4',
+      ansBgColor: '#16A34A',
+      ansTextColor: '#FEF08A',
+      canvasBgColor: '#1E1B4B',
+      timerSize: 36,
+      timerLeft: 32,
+      timerTop: 47,
+      timerBlendMode: 'normal'
+    };
+
+    const SET_SIZE = 3;
+    let isQuizSequenceRunning = false;
+    let timerStartTimeout = null;
+    let answerRevealTimeout = null;
+    let nextQuestionTimeout = null;
+    let nextSetTimeout = null;
+    let nextSetStartIndex = 0;
+    let wasDraggedRecently = false;
+
+    function scrollToControls() {
+      const el = document.getElementById('mobileControlsSection');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Computes ideal position inside lower part of #q-box right below where question ends and slightly above bottom
+    function getIdealBoxTimerTopPct() {
+      const qTop = parseFloat(document.getElementById('qTopPos').value) || 18;
+      const qHeight = parseFloat(document.getElementById('qBoxHeight').value) || 48;
+      const ansHeight = parseFloat(document.getElementById('ansBoxHeight').value) || 36;
+      const boxBottom = qTop + qHeight;
+      const ansAreaHeight = (qHeight * ansHeight) / 100;
+      const idealTop = boxBottom - ansAreaHeight - 1;
+      return Math.min(82, Math.max(8, Math.round(idealTop)));
+    }
+
+    function resetTimerDefaultPosition() {
+      hasUserMovedTimer = false;
+      const idealTop = getIdealBoxTimerTopPct();
+      const sizeVal = parseInt(document.getElementById('timerSizeSlider').value, 10) || 36;
+      const centeredLeft = Math.max(0, Math.round((100 - sizeVal) / 2));
+
+      document.getElementById('timerLeftSlider').value = centeredLeft;
+      document.getElementById('timerTopSlider').value = idealTop;
+      updateTimerTransform();
+    }
+
+    function showTimerBox() {
+      if (!hasTimerVideo) return;
+      const timerBox = document.getElementById('timerBox');
+      if (timerBox) timerBox.classList.remove('hidden');
+    }
+
+    function hideTimerBox() {
+      const timerBox = document.getElementById('timerBox');
+      if (timerBox) timerBox.classList.add('hidden');
+    }
+
+    function stopAndResetTimerVideo(shouldHide = false) {
+      const timerVideo = document.getElementById('timerVideo');
+      if (timerVideo) {
+        timerVideo.onended = null;
+        try {
+          timerVideo.pause();
+          timerVideo.currentTime = 0;
+        } catch (e) {}
+      }
+      if (shouldHide) {
+        hideTimerBox();
+      }
+    }
+
+    function clearQuizTimers() {
+      if (timerStartTimeout) {
+        clearTimeout(timerStartTimeout);
+        timerStartTimeout = null;
+      }
+      if (answerRevealTimeout) {
+        clearTimeout(answerRevealTimeout);
+        answerRevealTimeout = null;
+      }
+      if (nextQuestionTimeout) {
+        clearTimeout(nextQuestionTimeout);
+        nextQuestionTimeout = null;
+      }
+      if (nextSetTimeout) {
+        clearTimeout(nextSetTimeout);
+        nextSetTimeout = null;
+      }
+      stopAndResetTimerVideo(false);
+      isQuizSequenceRunning = false;
+      const btn = document.getElementById('startQuizBtn');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = '▶ START QUIZ';
+      }
+    }
+
+    function updateStatusBanner(text) {
+      const banner = document.getElementById('quizStatusBanner');
+      if (banner) banner.textContent = text;
+    }
+
+    // Load User Timer Video & place it right below question / slightly above bottom of yellow box
+    function loadTimerVideo(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      if (timerObjectUrl) {
+        URL.revokeObjectURL(timerObjectUrl);
+      }
+
+      timerObjectUrl = URL.createObjectURL(file);
+      const timerVideo = document.getElementById('timerVideo');
+
+      timerVideo.src = timerObjectUrl;
+      timerVideo.load();
+      hasTimerVideo = true;
+
+      // Place inside the lower portion of the yellow box (below question, slightly above bottom) if not manually positioned yet
+      if (!hasUserMovedTimer) {
+        const idealTop = getIdealBoxTimerTopPct();
+        const sizeVal = parseInt(document.getElementById('timerSizeSlider').value, 10) || 36;
+        const centeredLeft = Math.max(0, Math.round((100 - sizeVal) / 2));
+        document.getElementById('timerLeftSlider').value = centeredLeft;
+        document.getElementById('timerTopSlider').value = idealTop;
+      }
+
+      // Show initially so user can drag & resize (bada/chhota) directly on the box
+      showTimerBox();
+      document.getElementById('removeTimerBtn').classList.remove('hidden');
+      document.getElementById('resetTimerPosBtn').classList.remove('hidden');
+      document.getElementById('previewTimerBtn').classList.remove('hidden');
+      document.getElementById('showTimerSetupBtn').classList.remove('hidden');
+      document.getElementById('timerFileStatus').textContent = `Loaded: ${file.name} (Box mein question ke niche set hai — drag & corner ⤡ se bada/chhota karein)`;
+
+      updateTimerTransform();
+      event.target.value = '';
+    }
+
+    function removeTimerVideo() {
+      stopAndResetTimerVideo(true);
+      hasTimerVideo = false;
+      hasUserMovedTimer = false;
+      if (timerObjectUrl) {
+        URL.revokeObjectURL(timerObjectUrl);
+        timerObjectUrl = null;
+      }
+      const timerVideo = document.getElementById('timerVideo');
+      timerVideo.removeAttribute('src');
+      document.getElementById('removeTimerBtn').classList.add('hidden');
+      document.getElementById('resetTimerPosBtn').classList.add('hidden');
+      document.getElementById('previewTimerBtn').classList.add('hidden');
+      document.getElementById('showTimerSetupBtn').classList.add('hidden');
+      document.getElementById('timerFileStatus').textContent = 'Timer removed. Upload a new timer video anytime.';
+    }
+
+    function previewTimerOnce() {
+      if (!hasTimerVideo) return;
+      const timerVideo = document.getElementById('timerVideo');
+      hideAnswerBox();
+      showTimerBox();
+      timerVideo.currentTime = 0;
+      timerVideo.onended = () => {
+        timerVideo.pause();
+        hideTimerBox();
+      };
+      timerVideo.play().catch(() => {});
+    }
+
+    function toggleTimerMute() {
+      const timerVideo = document.getElementById('timerVideo');
+      const muteToggle = document.getElementById('timerMuteToggle');
+      if (timerVideo && muteToggle) {
+        timerVideo.muted = muteToggle.checked;
+      }
+    }
+
+    function updateTimerTransform() {
+      const timerBox = document.getElementById('timerBox');
+      const timerVideo = document.getElementById('timerVideo');
+      const sizeVal = document.getElementById('timerSizeSlider').value;
+      const leftVal = document.getElementById('timerLeftSlider').value;
+      const topVal = document.getElementById('timerTopSlider').value;
+      const blendMode = document.getElementById('timerBlendMode').value;
+
+      document.getElementById('timerSizeVal').textContent = sizeVal;
+      document.getElementById('timerLeftVal').textContent = leftVal;
+      document.getElementById('timerTopVal').textContent = topVal;
+
+      if (hasTimerVideo) {
+        showTimerBox();
+      }
+
+      if (timerBox) {
+        timerBox.style.width = `${sizeVal}%`;
+        timerBox.style.left = `${leftVal}%`;
+        timerBox.style.top = `${topVal}%`;
+        timerBox.style.mixBlendMode = blendMode;
+      }
+      if (timerVideo) {
+        timerVideo.style.mixBlendMode = blendMode;
+      }
+    }
+
+    // Enable Free 2D Dragging Anywhere on Screen for Timer Box + Corner Handle Resizing (Bada / Chhota)
+    function enableTimerDragAndResize(timerBox, resizeHandle) {
+      let isDragging = false;
+      let isResizing = false;
+      let startX = 0;
+      let startY = 0;
+      let initialLeftPx = 0;
+      let initialTopPx = 0;
+      let initialWidthPx = 0;
+
+      // Drag to move Timer Box anywhere on canvas
+      timerBox.addEventListener('pointerdown', (e) => {
+        if (e.target === resizeHandle || resizeHandle.contains(e.target)) return;
+        e.stopPropagation();
+        isDragging = true;
+        hasUserMovedTimer = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeftPx = timerBox.offsetLeft;
+        initialTopPx = timerBox.offsetTop;
+        timerBox.setPointerCapture(e.pointerId);
+      });
+
+      timerBox.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        e.stopPropagation();
+        const captureArea = document.getElementById('captureArea');
+        const containerW = captureArea.clientWidth;
+        const containerH = captureArea.clientHeight;
+        const elemW = timerBox.offsetWidth;
+        const elemH = timerBox.offsetHeight;
+
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+
+        const maxLeftPx = Math.max(0, containerW - elemW);
+        const maxTopPx = Math.max(0, containerH - elemH);
+
+        const clampedLeftPx = Math.min(maxLeftPx, Math.max(0, initialLeftPx + dx));
+        const clampedTopPx = Math.min(maxTopPx, Math.max(0, initialTopPx + dy));
+
+        const leftPct = Math.round((clampedLeftPx / containerW) * 100);
+        const topPct = Math.round((clampedTopPx / containerH) * 100);
+
+        timerBox.style.left = `${leftPct}%`;
+        timerBox.style.top = `${topPct}%`;
+
+        document.getElementById('timerLeftSlider').value = leftPct;
+        document.getElementById('timerTopSlider').value = topPct;
+        document.getElementById('timerLeftVal').textContent = leftPct;
+        document.getElementById('timerTopVal').textContent = topPct;
+      });
+
+      timerBox.addEventListener('pointerup', (e) => {
+        if (!isDragging) return;
+        e.stopPropagation();
+        isDragging = false;
+        try { timerBox.releasePointerCapture(e.pointerId); } catch (err) {}
+      });
+
+      // Drag Corner Handle to Resize Timer Box (Bada / Chhota)
+      resizeHandle.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        isResizing = true;
+        hasUserMovedTimer = true;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialWidthPx = timerBox.offsetWidth;
+        resizeHandle.setPointerCapture(e.pointerId);
+      });
+
+      resizeHandle.addEventListener('pointermove', (e) => {
+        if (!isResizing) return;
+        e.stopPropagation();
+        const captureArea = document.getElementById('captureArea');
+        const containerW = captureArea.clientWidth || 300;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const delta = Math.max(dx, dy);
+
+        const newWidthPx = initialWidthPx + delta;
+        let widthPct = Math.round((newWidthPx / containerW) * 100);
+        widthPct = Math.min(95, Math.max(12, widthPct));
+
+        timerBox.style.width = `${widthPct}%`;
+        document.getElementById('timerSizeSlider').value = widthPct;
+        document.getElementById('timerSizeVal').textContent = widthPct;
+      });
+
+      resizeHandle.addEventListener('pointerup', (e) => {
+        if (!isResizing) return;
+        e.stopPropagation();
+        isResizing = false;
+        try { resizeHandle.releasePointerCapture(e.pointerId); } catch (err) {}
+      });
+    }
+
+    function enableVerticalDragging(element, sliderId, labelId) {
+      let isDragging = false;
+      let startY = 0;
+      let initialTopPx = 0;
+      let movedDistance = 0;
+
+      element.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('#timerBox')) return;
+        isDragging = true;
+        movedDistance = 0;
+        startY = e.clientY;
+        initialTopPx = element.offsetTop;
+        element.setPointerCapture(e.pointerId);
+      });
+
+      element.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const captureArea = document.getElementById('captureArea');
+        const containerH = captureArea.clientHeight;
+        const elemH = element.offsetHeight;
+        const dy = e.clientY - startY;
+        movedDistance = Math.abs(dy);
+
+        const minTopPx = containerH * 0.08;
+        const maxTopPx = Math.max(minTopPx, containerH * 0.92 - elemH);
+        const clampedTopPx = Math.min(maxTopPx, Math.max(minTopPx, initialTopPx + dy));
+        const topPct = Number(((clampedTopPx / containerH) * 100).toFixed(1));
+
+        element.style.top = `${topPct}%`;
+
+        const slider = document.getElementById(sliderId);
+        const label = document.getElementById(labelId);
+        if (slider) slider.value = Math.round(topPct);
+        if (label) label.textContent = Math.round(topPct);
+
+        if (!hasUserMovedTimer) {
+          const idealTop = getIdealBoxTimerTopPct();
+          document.getElementById('timerTopSlider').value = idealTop;
+          document.getElementById('timerTopVal').textContent = idealTop;
+          document.getElementById('timerBox').style.top = `${idealTop}%`;
+        }
+      });
+
+      element.addEventListener('pointerup', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        try { element.releasePointerCapture(e.pointerId); } catch (err) {}
+        if (movedDistance > 5) {
+          wasDraggedRecently = true;
+          setTimeout(() => { wasDraggedRecently = false; }, 120);
+        }
+      });
+    }
+
+    function syncPositionSliders() {
+      const captureArea = document.getElementById('captureArea');
+      const qBox = document.getElementById('q-box');
+      const containerH = captureArea.clientHeight || 500;
+
+      let qTop = parseFloat(document.getElementById('qTopPos').value);
+      if (isNaN(qTop)) qTop = 18;
+
+      const maxQTop = Math.max(8, 92 - (qBox.offsetHeight / containerH) * 100);
+      qTop = Math.min(maxQTop, Math.max(8, qTop));
+
+      qBox.style.top = `${qTop}%`;
+
+      document.getElementById('qTopPos').value = Math.round(qTop);
+      document.getElementById('qTopPosVal').textContent = Math.round(qTop);
+
+      if (!hasUserMovedTimer) {
+        const idealTop = getIdealBoxTimerTopPct();
+        document.getElementById('timerTopSlider').value = idealTop;
+        document.getElementById('timerTopVal').textContent = idealTop;
+        const timerBox = document.getElementById('timerBox');
+        if (timerBox) timerBox.style.top = `${idealTop}%`;
+      }
+    }
+
+    function applySettingsObject(settings) {
+      const cfg = { ...FACTORY_DEFAULTS, ...settings };
+      document.getElementById('qFontFamily').value = cfg.qFontFamily;
+      document.getElementById('ansFontFamily').value = cfg.ansFontFamily;
+      document.getElementById('qFontSize').value = cfg.qFontSize;
+      document.getElementById('ansFontSize').value = cfg.ansFontSize;
+      document.getElementById('qBoxHeight').value = cfg.qBoxHeight;
+      document.getElementById('qBoxWidth').value = cfg.qBoxWidth;
+      document.getElementById('ansBoxHeight').value = cfg.ansBoxHeight;
+      document.getElementById('innerGap').value = cfg.innerGap;
+      document.getElementById('qTopPos').value = cfg.qTopPos;
+      document.getElementById('qBgColor').value = cfg.qBgColor;
+      document.getElementById('qTextColor').value = cfg.qTextColor;
+      document.getElementById('ansBgColor').value = cfg.ansBgColor;
+      document.getElementById('ansTextColor').value = cfg.ansTextColor;
+      document.getElementById('canvasBgColor').value = cfg.canvasBgColor;
+
+      document.getElementById('timerSizeSlider').value = cfg.timerSize;
+      document.getElementById('timerLeftSlider').value = cfg.timerLeft;
+      document.getElementById('timerTopSlider').value = cfg.timerTop;
+      document.getElementById('timerBlendMode').value = cfg.timerBlendMode;
+
+      applyStyles();
+      updateTimerTransform();
+    }
+
+    function saveCurrentAsDefault() {
+      const currentSettings = {
+        qFontFamily: document.getElementById('qFontFamily').value,
+        ansFontFamily: document.getElementById('ansFontFamily').value,
+        qFontSize: parseInt(document.getElementById('qFontSize').value, 10),
+        ansFontSize: parseInt(document.getElementById('ansFontSize').value, 10),
+        qBoxHeight: parseInt(document.getElementById('qBoxHeight').value, 10),
+        qBoxWidth: parseInt(document.getElementById('qBoxWidth').value, 10),
+        ansBoxHeight: parseInt(document.getElementById('ansBoxHeight').value, 10),
+        innerGap: parseInt(document.getElementById('innerGap').value, 10),
+        qTopPos: parseInt(document.getElementById('qTopPos').value, 10),
+        qBgColor: document.getElementById('qBgColor').value,
+        qTextColor: document.getElementById('qTextColor').value,
+        ansBgColor: document.getElementById('ansBgColor').value,
+        ansTextColor: document.getElementById('ansTextColor').value,
+        canvasBgColor: document.getElementById('canvasBgColor').value,
+        timerSize: parseInt(document.getElementById('timerSizeSlider').value, 10),
+        timerLeft: parseInt(document.getElementById('timerLeftSlider').value, 10),
+        timerTop: parseInt(document.getElementById('timerTopSlider').value, 10),
+        timerBlendMode: document.getElementById('timerBlendMode').value
+      };
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(currentSettings));
+      } catch (err) {}
+
+      const btn = document.getElementById('saveDefaultBtn');
+      if (btn) {
+        btn.textContent = '✅ Saved!';
+        setTimeout(() => { btn.textContent = '💾 Save Default'; }, 1500);
+      }
+      updateStatusBanner('Saved your current layout, timer position/size, fonts & colors as permanent default!');
+    }
+
+    function factoryResetSettings() {
+      hasUserMovedTimer = false;
+      try {
+        localStorage.removeItem(STORAGE_KEY);
+      } catch (err) {}
+      applySettingsObject(FACTORY_DEFAULTS);
+      updateStatusBanner('Reset to factory default settings.');
+    }
+
+    function loadSavedDefaults() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (typeof parsed.timerTop === 'number' || typeof parsed.timerLeft === 'number') {
+            hasUserMovedTimer = true;
+          }
+          applySettingsObject(parsed);
+          return;
+        }
+      } catch (err) {}
+      applySettingsObject(FACTORY_DEFAULTS);
+    }
+
+    function autoFitTextInsideContainer(containerEl, textEl, targetFontSize, minFontSize = 12) {
+      if (!containerEl || !textEl) return;
+
+      let fontSize = targetFontSize;
+      let lineHeight = fontSize >= 28 ? 1.16 : 1.22;
+
+      const originalText = textEl.textContent;
+      textEl.innerHTML = '';
+      const measureSpan = document.createElement('span');
+      measureSpan.style.display = 'inline-block';
+      measureSpan.style.width = '100%';
+      measureSpan.style.wordBreak = 'break-word';
+      measureSpan.textContent = originalText;
+      textEl.appendChild(measureSpan);
+
+      textEl.style.fontSize = fontSize + 'px';
+      textEl.style.lineHeight = lineHeight;
+
+      const maxAvailableHeight = Math.max(24, containerEl.clientHeight - 4);
+      const maxAvailableWidth = Math.max(40, containerEl.clientWidth - 6);
+
+      while (
+        (measureSpan.offsetHeight > maxAvailableHeight || measureSpan.scrollWidth > maxAvailableWidth) &&
+        fontSize > minFontSize
+      ) {
+        fontSize -= 0.5;
+        lineHeight = fontSize >= 28 ? 1.15 : (fontSize < 16 ? 1.14 : 1.20);
+        textEl.style.fontSize = fontSize + 'px';
+        textEl.style.lineHeight = lineHeight;
+      }
+
+      textEl.textContent = originalText;
+    }
+
+    function autoFitTexts() {
+      const qSection = document.getElementById('questionSection');
+      const qText = document.getElementById('qText');
+      const qMax = parseInt(document.getElementById('qFontSize').value, 10) || 24;
+      autoFitTextInsideContainer(qSection, qText, qMax, 12);
+
+      const ansBox = document.getElementById('answerBox');
+      const ansText = document.getElementById('ansText');
+      const ansMax = parseInt(document.getElementById('ansFontSize').value, 10) || 18;
+      autoFitTextInsideContainer(ansBox, ansText, ansMax, 12);
+    }
+
+    function applyStyles() {
+      const qFontSize = document.getElementById('qFontSize').value;
+      const ansFontSize = document.getElementById('ansFontSize').value;
+      const qBoxHeight = document.getElementById('qBoxHeight').value;
+      const qBoxWidth = document.getElementById('qBoxWidth').value;
+      const ansBoxHeight = document.getElementById('ansBoxHeight').value;
+      const innerGap = document.getElementById('innerGap').value;
+
+      const qFontFamily = document.getElementById('qFontFamily').value;
+      const ansFontFamily = document.getElementById('ansFontFamily').value;
+
+      document.getElementById('qFontSizeVal').textContent = qFontSize;
+      document.getElementById('ansFontSizeVal').textContent = ansFontSize;
+      document.getElementById('qBoxHeightVal').textContent = qBoxHeight;
+      document.getElementById('qBoxWidthVal').textContent = qBoxWidth;
+      document.getElementById('ansBoxHeightVal').textContent = ansBoxHeight;
+      document.getElementById('innerGapVal').textContent = innerGap;
+
+      const qBox = document.getElementById('q-box');
+      const qText = document.getElementById('qText');
+      const qBgColor = document.getElementById('qBgColor').value;
+      const qTextColor = document.getElementById('qTextColor').value;
+
+      qBox.style.height = qBoxHeight + '%';
+      qBox.style.width = qBoxWidth + '%';
+      qBox.style.gap = innerGap + 'px';
+      qBox.style.backgroundImage = 'none';
+      qBox.style.backgroundColor = qBgColor;
+
+      qText.style.color = qTextColor;
+      qText.style.fontFamily = qFontFamily;
+
+      const ansBox = document.getElementById('answerBox');
+      const ansText = document.getElementById('ansText');
+      const ansBgColor = document.getElementById('ansBgColor').value;
+      const ansTextColor = document.getElementById('ansTextColor').value;
+
+      ansBox.style.height = ansBoxHeight + '%';
+      ansBox.style.backgroundColor = ansBgColor;
+      ansText.style.color = ansTextColor;
+      ansText.style.fontFamily = ansFontFamily;
+
+      const captureArea = document.getElementById('captureArea');
+      if (!hasCustomBgImage) {
+        captureArea.style.backgroundImage = 'none';
+        captureArea.style.backgroundColor = document.getElementById('canvasBgColor').value;
+      }
+
+      syncPositionSliders();
+      autoFitTexts();
+    }
+
+    function handleCanvasBgColorChange() {
+      hasCustomBgImage = false;
+      const bgUploadInput = document.getElementById('bgUpload');
+      if (bgUploadInput) bgUploadInput.value = '';
+      applyStyles();
+    }
+
+    function hideAnswerBox() {
+      isAnswerRevealed = false;
+      const ansBox = document.getElementById('answerBox');
+      if (ansBox) {
+        ansBox.classList.remove('answer-box-revealed');
+        ansBox.classList.add('answer-box-hidden');
+      }
+    }
+
+    function revealAnswer() {
+      isAnswerRevealed = true;
+      const ansBox = document.getElementById('answerBox');
+      if (ansBox) {
+        ansBox.classList.remove('answer-box-hidden', 'answer-box-revealed');
+        void ansBox.offsetWidth;
+        ansBox.classList.add('answer-box-revealed');
+      }
+      autoFitTexts();
+    }
+
+    function handleCardClick(event) {
+      if (wasDraggedRecently) return;
+      if (!isAnswerRevealed) {
+        revealAnswer();
+      } else {
+        hideAnswerBox();
+      }
+    }
+
+    function triggerSlideEntranceAnimations() {
+      const qBox = document.getElementById('q-box');
+      qBox.classList.remove('animate-pop-down');
+      void qBox.offsetWidth;
+      qBox.classList.add('animate-pop-down');
+    }
+
+    function renderQuestion(keepSequence = false) {
+      if (!questions.length) return;
+      if (!keepSequence) {
+        clearQuizTimers();
+      } else {
+        stopAndResetTimerVideo(true);
+      }
+      hideAnswerBox();
+      triggerSlideEntranceAnimations();
+
+      const cur = questions[currentIndex];
+      document.getElementById('qText').textContent = cur.q;
+      document.getElementById('ansText').textContent = cur.answerText;
+
+      document.getElementById('editQuestionInput').value = cur.q;
+      document.getElementById('editAnswerInput').value = cur.answerText;
+
+      const setNumber = Math.floor(currentIndex / SET_SIZE) + 1;
+      const totalSets = Math.ceil(questions.length / SET_SIZE);
+      const posInSet = (currentIndex % SET_SIZE) + 1;
+      const setCount = Math.min(SET_SIZE, questions.length - Math.floor(currentIndex / SET_SIZE) * SET_SIZE);
+
+      const isMobile = window.innerWidth < 768;
+      document.getElementById('pageIndicator').textContent = isMobile
+        ? `Q ${currentIndex + 1}/${questions.length}`
+        : `Q ${currentIndex + 1} / ${questions.length} (Set ${setNumber}/${totalSets} • ${posInSet}/${setCount})`;
+      applyStyles();
+    }
+
+    // AUTOMATED QUIZ SEQUENCE:
+    // 1. Question loads with animation (timer stays hidden)
+    // 2. After 2 seconds -> Timer appears below question (slightly above bottom of box) & starts automatically
+    // 3. When Timer finishes -> Timer disappears immediately & correct answer shows with animation
+    // 4. Correct answer stays for 2 seconds -> Next question loads & cycle repeats
+    function startQuizSet() {
+      if (!questions.length || isQuizSequenceRunning) return;
+
+      if (nextSetStartIndex >= questions.length) {
+        nextSetStartIndex = 0;
+      }
+
+      const batchStart = nextSetStartIndex;
+      const batchEnd = Math.min(batchStart + SET_SIZE - 1, questions.length - 1);
+      const setNumber = Math.floor(batchStart / SET_SIZE) + 1;
+      const totalSets = Math.ceil(questions.length / SET_SIZE);
+
+      isQuizSequenceRunning = true;
+      const btn = document.getElementById('startQuizBtn');
+      btn.disabled = true;
+      btn.textContent = `▶ RUNNING (${setNumber}/${totalSets})...`;
+
+      function onTimerComplete(qIdx) {
+        if (!isQuizSequenceRunning) return;
+
+        // Hide timer immediately as soon as it finishes
+        stopAndResetTimerVideo(true);
+
+        // Reveal correct answer with animation immediately when timer ends
+        revealAnswer();
+
+        if (qIdx < batchEnd) {
+          updateStatusBanner(`Set ${setNumber}/${totalSets} — Sahi Uttar (2s)... Agla prashna aa raha hai`);
+
+          nextQuestionTimeout = setTimeout(() => {
+            if (!isQuizSequenceRunning) return;
+            runQuestionInBatch(qIdx + 1);
+          }, 2000);
+        } else {
+          updateStatusBanner(`Set ${setNumber}/${totalSets} — Antim Sahi Uttar (2s)...`);
+
+          nextQuestionTimeout = setTimeout(() => {
+            if (!isQuizSequenceRunning) return;
+
+            stopAndResetTimerVideo(true);
+            isQuizSequenceRunning = false;
+            timerStartTimeout = null;
+            answerRevealTimeout = null;
+            nextQuestionTimeout = null;
+
+            nextSetStartIndex = batchEnd + 1;
+            const hasMore = nextSetStartIndex < questions.length;
+            if (!hasMore) {
+              nextSetStartIndex = 0;
+            }
+
+            btn.disabled = false;
+            btn.textContent = '▶ START QUIZ';
+
+            if (hasMore) {
+              const nextSetNum = Math.floor(nextSetStartIndex / SET_SIZE) + 1;
+              updateStatusBanner(
+                `Set ${setNumber}/${totalSets} Complete! Auto-starting Set ${nextSetNum}/${totalSets} in 2s...`
+              );
+
+              nextSetTimeout = setTimeout(() => {
+                nextSetTimeout = null;
+                startQuizSet();
+              }, 2000);
+            } else {
+              updateStatusBanner(`Sabhi ${totalSets} Sets Complete! Dubara chalane ke liye "START QUIZ" dabayein.`);
+            }
+          }, 2000);
+        }
+      }
+
+      function runQuestionInBatch(qIdx) {
+        if (!isQuizSequenceRunning) return;
+
+        currentIndex = qIdx;
+        renderQuestion(true);
+
+        const stepNum = qIdx - batchStart + 1;
+        const totalInBatch = batchEnd - batchStart + 1;
+        updateStatusBanner(`Set ${setNumber}/${totalSets} — Q${stepNum}/${totalInBatch}: 2 second mein timer shuru hoga...`);
+
+        // Step 1: Wait 2 seconds after question loads with animation
+        timerStartTimeout = setTimeout(() => {
+          if (!isQuizSequenceRunning) return;
+
+          const timerVideo = document.getElementById('timerVideo');
+
+          if (hasTimerVideo && timerVideo && timerVideo.src) {
+            updateStatusBanner(`Set ${setNumber}/${totalSets} — Q${stepNum}/${totalInBatch}: Timer chal raha hai...`);
+
+            // Show timer box below question and start playing from 0
+            showTimerBox();
+            timerVideo.currentTime = 0;
+
+            // Step 2: When timer video finishes, hide timer & automatically show correct answer
+            timerVideo.onended = () => {
+              timerVideo.onended = null;
+              onTimerComplete(qIdx);
+            };
+
+            const playPromise = timerVideo.play();
+            if (playPromise !== undefined) {
+              playPromise.catch(() => {
+                answerRevealTimeout = setTimeout(() => onTimerComplete(qIdx), 3000);
+              });
+            }
+          } else {
+            updateStatusBanner(`Set ${setNumber}/${totalSets} — Q${stepNum}/${totalInBatch}: Timer (3s)...`);
+            answerRevealTimeout = setTimeout(() => {
+              onTimerComplete(qIdx);
+            }, 3000);
+          }
+        }, 2000);
+      }
+
+      runQuestionInBatch(batchStart);
+    }
+
+    function updateSlideContent() {
+      const qVal = document.getElementById('editQuestionInput').value;
+      const ansVal = document.getElementById('editAnswerInput').value;
+
+      questions[currentIndex].q = qVal;
+      questions[currentIndex].answerText = ansVal;
+
+      document.getElementById('qText').textContent = qVal;
+      document.getElementById('ansText').textContent = ansVal;
+
+      autoFitTexts();
+    }
+
+    function nextQuestion() {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        nextSetStartIndex = Math.floor(currentIndex / SET_SIZE) * SET_SIZE;
+        renderQuestion(false);
+      }
+    }
+
+    function prevQuestion() {
+      if (currentIndex > 0) {
+        currentIndex--;
+        nextSetStartIndex = Math.floor(currentIndex / SET_SIZE) * SET_SIZE;
+        renderQuestion(false);
+      }
+    }
+
+    function openModal() { document.getElementById('questionModal').classList.remove('hidden'); }
+    function closeModal() { document.getElementById('questionModal').classList.add('hidden'); }
+
+    function saveBulkQuestions() {
+      const text = document.getElementById('bulkInput').value.trim();
+      if (!text) return;
+      const lines = text.split('\n');
+      const newQuestions = [];
+
+      lines.forEach(line => {
+        const parts = line.split('|').map(p => p.trim()).filter(p => p.length > 0);
+        if (parts.length >= 6) {
+          const letter = parts[5].toUpperCase();
+          const optIdx = letter.charCodeAt(0) - 65;
+          const ansText = (optIdx >= 0 && optIdx <= 3 && parts[optIdx + 1]) ? parts[optIdx + 1] : parts[1];
+          newQuestions.push({
+            q: parts[0],
+            answerText: ansText
+          });
+        } else if (parts.length >= 2) {
+          newQuestions.push({
+            q: parts[0],
+            answerText: parts[1]
+          });
+        }
+      });
+
+      if (newQuestions.length > 0) {
+        questions = newQuestions;
+        currentIndex = 0;
+        nextSetStartIndex = 0;
+        renderQuestion(false);
+        const totalSets = Math.ceil(questions.length / SET_SIZE);
+        updateStatusBanner(`Loaded ${questions.length} questions (${totalSets} sets of 3).`);
+        closeModal();
+      }
+    }
+
+    function loadBackground(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        hasCustomBgImage = true;
+        const captureArea = document.getElementById('captureArea');
+        captureArea.style.backgroundImage = `url('${e.target.result}')`;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function downloadPNG() {
+      const wasHidden = !isAnswerRevealed;
+      const timerWasVisible = !document.getElementById('timerBox').classList.contains('hidden');
+      if (timerWasVisible) hideTimerBox();
+      if (wasHidden) revealAnswer();
+      await new Promise(r => setTimeout(r, 80));
+
+      const canvas = await html2canvas(document.getElementById('captureArea'), { scale: 3 });
+      const link = document.createElement('a');
+      link.download = `Shorts_Slide_${currentIndex + 1}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+
+      if (wasHidden) hideAnswerBox();
+      if (timerWasVisible) showTimerBox();
+    }
+
+    async function downloadAllPNGs() {
+      if (typeof JSZip === 'undefined') return;
+      const zip = new JSZip();
+      const orig = currentIndex;
+      const timerWasVisible = !document.getElementById('timerBox').classList.contains('hidden');
+      if (timerWasVisible) hideTimerBox();
+
+      for (let i = 0; i < questions.length; i++) {
+        currentIndex = i;
+        renderQuestion(false);
+        revealAnswer();
+        await new Promise(r => setTimeout(r, 120));
+        const canvas = await html2canvas(document.getElementById('captureArea'), { scale: 3 });
+        const data = canvas.toDataURL('image/png').split(',')[1];
+        zip.file(`Shorts_Question_${i + 1}.png`, data, { base64: true });
+      }
+
+      currentIndex = orig;
+      renderQuestion(false);
+      if (timerWasVisible) showTimerBox();
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.download = 'Shorts_Direct_Answer_Slides.zip';
+      link.href = URL.createObjectURL(content);
+      link.click();
+    }
+
+    enableVerticalDragging(document.getElementById('q-box'), 'qTopPos', 'qTopPosVal');
+    enableTimerDragAndResize(
+      document.getElementById('timerBox'),
+      document.getElementById('timerResizeHandle')
+    );
+
+    window.addEventListener('resize', () => {
+      syncPositionSliders();
+      autoFitTexts();
+      const wasRevealed = isAnswerRevealed;
+      renderQuestion(isQuizSequenceRunning);
+      if (wasRevealed) revealAnswer();
+    });
+
+    loadSavedDefaults();
+    renderQuestion(false);
+  </script>
+</body>
+</html>
